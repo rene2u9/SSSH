@@ -1,4 +1,4 @@
-# VibeSSH
+# SimpleSSH
 
 A modern SSH client for Android with a full-featured terminal emulator.
 
@@ -24,8 +24,8 @@ A modern SSH client for Android with a full-featured terminal emulator.
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/VibeSSH.git
-cd VibeSSH
+git clone https://github.com/yourusername/SimpleSSH.git
+cd SimpleSSH
 
 # Build debug APK
 ./gradlew assembleDebug

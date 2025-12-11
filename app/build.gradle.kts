@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "r2u9.vibe"
+    namespace = "r2u9.SimpleSSH"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "r2u9.vibe"
+        applicationId = "r2u9.SimpleSSH"
         minSdk = 31
         targetSdk = 35
         versionCode = 1

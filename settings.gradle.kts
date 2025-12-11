@@ -19,6 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "VibeSSH"
+rootProject.name = "SimpleSSH"
 include(":app")
  

@@ -31,7 +31,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <r2u9.vibe.terminal.TerminalView
+        <r2u9.SimpleSSH.terminal.TerminalView
             android:id="@+id/terminalView"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
