@@ -270,11 +270,13 @@ class MainActivity : AppCompatActivity() {
             connections.forEach { connection ->
                 launch {
                     val isReachable = checkHostReachable(connection.host, connection.port)
+                    val status = when {
+                        isReachable -> HostStatus.ONLINE
+                        connection.wolEnabled && !connection.wolMacAddress.isNullOrEmpty() -> HostStatus.WOL_AVAILABLE
+                        else -> HostStatus.OFFLINE
+                    }
                     withContext(Dispatchers.Main) {
-                        connectionAdapter.updateHostStatus(
-                            connection.id,
-                            if (isReachable) HostStatus.ONLINE else HostStatus.OFFLINE
-                        )
+                        connectionAdapter.updateHostStatus(connection.id, status)
                     }
                 }
             }

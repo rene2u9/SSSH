@@ -12,7 +12,7 @@ import r2u9.SimpleSSH.data.model.SshConnection
 import r2u9.SimpleSSH.databinding.ItemConnectionBinding
 
 enum class HostStatus {
-    UNKNOWN, ONLINE, OFFLINE
+    UNKNOWN, ONLINE, OFFLINE, WOL_AVAILABLE
 }
 
 class ConnectionAdapter(
@@ -106,6 +106,7 @@ class ConnectionAdapter(
                 HostStatus.UNKNOWN -> R.drawable.bg_status_dot_unknown
                 HostStatus.ONLINE -> R.drawable.bg_status_dot_online
                 HostStatus.OFFLINE -> R.drawable.bg_status_dot_offline
+                HostStatus.WOL_AVAILABLE -> R.drawable.bg_status_dot_wol
             }
             binding.statusDot.setBackgroundResource(drawableRes)
         }
