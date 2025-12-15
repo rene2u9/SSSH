@@ -174,23 +174,36 @@
                 android:layout_height="wrap_content"
                 android:gravity="center"
                 android:orientation="vertical"
-                android:padding="48dp"
+                android:paddingHorizontal="32dp"
+                android:paddingTop="64dp"
+                android:paddingBottom="48dp"
                 android:visibility="gone"
                 tools:visibility="visible">
 
-                <ImageView
-                    android:layout_width="80dp"
-                    android:layout_height="80dp"
-                    android:alpha="0.5"
-                    android:src="@drawable/ic_add_connection"
-                    app:tint="?attr/colorOnSurfaceVariant" />
+                <FrameLayout
+                    android:layout_width="100dp"
+                    android:layout_height="100dp">
+
+                    <View
+                        android:layout_width="100dp"
+                        android:layout_height="100dp"
+                        android:background="@drawable/bg_empty_state_circle" />
+
+                    <ImageView
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_terminal"
+                        app:tint="?attr/colorPrimary" />
+
+                </FrameLayout>
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
+                    android:layout_marginTop="24dp"
                     android:text="No connections yet"
-                    android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+                    android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
                     android:textColor="?attr/colorOnSurface" />
 
                 <TextView
@@ -198,7 +211,8 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:gravity="center"
-                    android:text="Add your first SSH connection to get started"
+                    android:lineSpacingExtra="4dp"
+                    android:text="Add your first SSH connection\nto get started"
                     android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
                     android:textColor="?attr/colorOnSurfaceVariant" />
 
@@ -206,8 +220,10 @@
                     android:id="@+id/emptyAddButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="24dp"
+                    android:layout_marginTop="28dp"
+                    android:paddingHorizontal="24dp"
                     android:text="Add Connection"
+                    app:cornerRadius="24dp"
                     app:icon="@drawable/ic_add" />
 
             </LinearLayout>

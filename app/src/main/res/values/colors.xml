@@ -18,7 +18,9 @@
     <!-- Surface colors -->
     <color name="surface">#0F1514</color>
     <color name="on_surface">#DEE4E2</color>
-    <color name="surface_container_high">#1A2120</color>
+    <color name="surface_container">#161D1C</color>
+    <color name="surface_container_high">#1F2726</color>
+    <color name="surface_container_highest">#2A3231</color>
     <color name="surface_variant">#3F4948</color>
     <color name="on_surface_variant">#BEC9C7</color>
 
