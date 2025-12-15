@@ -6,8 +6,22 @@ import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress
 
+/**
+ * Utility for sending Wake-on-LAN (WOL) magic packets.
+ *
+ * Wake-on-LAN is a networking standard that allows a computer to be turned on
+ * remotely by sending a special "magic packet" over the network.
+ */
 object WakeOnLan {
 
+    /**
+     * Sends a Wake-on-LAN magic packet to wake a remote machine.
+     *
+     * @param macAddress The target device's MAC address (formats: AA:BB:CC:DD:EE:FF, AA-BB-CC-DD-EE-FF, or AABBCCDDEEFF)
+     * @param broadcastAddress The broadcast address for the network (default: 255.255.255.255)
+     * @param port The UDP port to send the packet to (default: 9, standard WOL port)
+     * @return Result indicating success or failure with the exception
+     */
     suspend fun sendMagicPacket(
         macAddress: String,
         broadcastAddress: String = "255.255.255.255",
@@ -59,6 +73,12 @@ object WakeOnLan {
         return packet
     }
 
+    /**
+     * Validates a MAC address string.
+     *
+     * @param macAddress The MAC address to validate
+     * @return true if the format is valid, false otherwise
+     */
     fun isValidMacAddress(macAddress: String): Boolean {
         val patterns = listOf(
             Regex("^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$"),  // AA:BB:CC:DD:EE:FF or AA-BB-CC-DD-EE-FF
@@ -67,6 +87,12 @@ object WakeOnLan {
         return patterns.any { it.matches(macAddress) }
     }
 
+    /**
+     * Formats a MAC address to the canonical colon-separated uppercase format.
+     *
+     * @param macAddress The MAC address to format
+     * @return The formatted MAC address (e.g., "AA:BB:CC:DD:EE:FF")
+     */
     fun formatMacAddress(macAddress: String): String {
         val cleanMac = macAddress.replace(Regex("[:-]"), "").uppercase()
         return cleanMac.chunked(2).joinToString(":")

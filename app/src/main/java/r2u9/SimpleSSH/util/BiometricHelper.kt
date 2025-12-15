@@ -5,13 +5,35 @@ import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 
+/**
+ * Helper object for biometric authentication (fingerprint, face recognition).
+ *
+ * Provides methods to check biometric availability and perform authentication
+ * for protecting sensitive actions like connecting to servers or revealing passwords.
+ */
 object BiometricHelper {
 
+    /**
+     * Checks if biometric authentication is available and configured on the device.
+     *
+     * @param activity The activity context
+     * @return true if biometric authentication can be used, false otherwise
+     */
     fun canAuthenticate(activity: FragmentActivity): Boolean {
         val biometricManager = BiometricManager.from(activity)
         return biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.BIOMETRIC_WEAK) == BiometricManager.BIOMETRIC_SUCCESS
     }
 
+    /**
+     * Shows the biometric authentication prompt.
+     *
+     * @param activity The activity to show the prompt in
+     * @param title The title displayed in the biometric prompt
+     * @param subtitle The subtitle displayed in the biometric prompt
+     * @param onSuccess Called when authentication succeeds
+     * @param onError Called when an error occurs (except user cancellation)
+     * @param onFailed Called when authentication fails (wrong biometric)
+     */
     fun authenticate(
         activity: FragmentActivity,
         title: String,
@@ -54,6 +76,17 @@ object BiometricHelper {
         biometricPrompt.authenticate(promptInfo)
     }
 
+    /**
+     * Authenticates only if biometric is enabled in preferences.
+     * If biometric is disabled or unavailable, calls onSuccess immediately.
+     *
+     * @param activity The activity to show the prompt in
+     * @param prefs The app preferences to check biometric setting
+     * @param title The title displayed in the biometric prompt
+     * @param subtitle The subtitle displayed in the biometric prompt
+     * @param onSuccess Called when authentication succeeds or biometric is disabled
+     * @param onError Called when an error occurs
+     */
     fun authenticateIfEnabled(
         activity: FragmentActivity,
         prefs: AppPreferences,
