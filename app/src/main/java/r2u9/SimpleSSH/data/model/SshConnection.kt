@@ -17,7 +17,11 @@ data class SshConnection(
     val privateKeyPassphrase: String? = null,
     val colorTheme: String = "default",
     val createdAt: Long = System.currentTimeMillis(),
-    val lastConnectedAt: Long? = null
+    val lastConnectedAt: Long? = null,
+    val wolEnabled: Boolean = false,
+    val wolMacAddress: String? = null,
+    val wolBroadcastAddress: String? = null,
+    val wolPort: Int = 9
 )
 
 enum class AuthType {

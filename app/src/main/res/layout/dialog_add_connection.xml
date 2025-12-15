@@ -194,6 +194,102 @@
 
         </com.google.android.material.textfield.TextInputLayout>
 
+        <!-- Wake on LAN Section -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Wake on LAN"
+                android:textAppearance="@style/TextAppearance.Material3.TitleSmall"
+                android:textColor="?attr/colorOnSurfaceVariant" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/wolSwitch"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/wolSection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Send magic packet before connecting"
+                android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+                android:textColor="?attr/colorOnSurfaceVariant" />
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/wolMacLayout"
+                style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:hint="MAC Address"
+                app:helperText="e.g. AA:BB:CC:DD:EE:FF"
+                app:helperTextEnabled="true">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/wolMacInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="text"
+                    android:textAllCaps="true" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/wolBroadcastLayout"
+                style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:hint="Broadcast Address (optional)"
+                app:helperText="Default: 255.255.255.255"
+                app:helperTextEnabled="true">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/wolBroadcastInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="text" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/wolPortLayout"
+                style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:hint="WOL Port"
+                app:helperText="Default: 9"
+                app:helperTextEnabled="true">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/wolPortInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="number"
+                    android:text="9" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+        </LinearLayout>
+
     </LinearLayout>
 
 </androidx.core.widget.NestedScrollView>

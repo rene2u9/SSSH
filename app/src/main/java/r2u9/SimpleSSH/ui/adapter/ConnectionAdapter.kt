@@ -18,8 +18,8 @@ enum class HostStatus {
 class ConnectionAdapter(
     private val onConnect: (SshConnection) -> Unit,
     private val onEdit: (SshConnection) -> Unit,
-    private val onDelete: (SshConnection) -> Unit,
-    private val onSettings: () -> Unit
+    private val onDuplicate: (SshConnection) -> Unit,
+    private val onDelete: (SshConnection) -> Unit
 ) : ListAdapter<SshConnection, ConnectionAdapter.ViewHolder>(DiffCallback()) {
 
     private val hostStatusMap = mutableMapOf<Long, HostStatus>()
@@ -86,19 +86,17 @@ class ConnectionAdapter(
             }
 
             binding.moreButton.setOnClickListener { view ->
-                val options = arrayOf("Settings", "Connect", "Edit", "Delete")
+                val options = arrayOf("Connect", "Edit", "Duplicate", "Delete")
                 MaterialAlertDialogBuilder(view.context)
                     .setTitle(connection.name)
-                    .setSingleChoiceItems(options, -1) { dialog, which ->
-                        dialog.dismiss()
+                    .setItems(options) { _, which ->
                         when (which) {
-                            0 -> onSettings()
-                            1 -> onConnect(connection)
-                            2 -> onEdit(connection)
+                            0 -> onConnect(connection)
+                            1 -> onEdit(connection)
+                            2 -> onDuplicate(connection)
                             3 -> onDelete(connection)
                         }
                     }
-                    .setNegativeButton("Cancel", null)
                     .show()
             }
         }

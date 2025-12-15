@@ -48,6 +48,7 @@ import r2u9.SimpleSSH.ui.viewmodel.MainViewModel
 import r2u9.SimpleSSH.util.AppPreferences
 import r2u9.SimpleSSH.util.BiometricHelper
 import r2u9.SimpleSSH.util.ConfigExporter
+import r2u9.SimpleSSH.util.WakeOnLan
 import java.net.InetSocketAddress
 import java.net.Socket
 
@@ -213,8 +214,8 @@ class MainActivity : AppCompatActivity() {
         connectionAdapter = ConnectionAdapter(
             onConnect = { connection -> connectTo(connection) },
             onEdit = { connection -> showEditConnectionDialog(connection) },
-            onDelete = { connection -> showDeleteConfirmation(connection) },
-            onSettings = { startActivity(Intent(this, SettingsActivity::class.java)) }
+            onDuplicate = { connection -> showDuplicateConnectionDialog(connection) },
+            onDelete = { connection -> showDeleteConfirmation(connection) }
         )
         binding.connectionsList.apply {
             layoutManager = LinearLayoutManager(this@MainActivity)
@@ -373,12 +374,30 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val loadingDialog = MaterialAlertDialogBuilder(this@MainActivity)
                 .setTitle("Connecting")
-                .setMessage("Connecting to ${connection.host}...")
+                .setMessage(if (connection.wolEnabled) "Sending Wake-on-LAN packet..." else "Connecting to ${connection.host}...")
                 .setCancelable(false)
                 .create()
             loadingDialog.show()
 
             try {
+                // Send WOL packet if enabled
+                if (connection.wolEnabled && !connection.wolMacAddress.isNullOrEmpty()) {
+                    val wolResult = WakeOnLan.sendMagicPacket(
+                        macAddress = connection.wolMacAddress,
+                        broadcastAddress = connection.wolBroadcastAddress ?: "255.255.255.255",
+                        port = connection.wolPort
+                    )
+                    wolResult.onFailure { error ->
+                        loadingDialog.dismiss()
+                        showError("Wake-on-LAN failed: ${error.message}")
+                        return@launch
+                    }
+                    // Update dialog message and wait for host to wake up
+                    loadingDialog.setMessage("Waiting for ${connection.host} to wake up...")
+                    kotlinx.coroutines.delay(3000) // Wait 3 seconds for host to start booting
+                }
+
+                loadingDialog.setMessage("Connecting to ${connection.host}...")
                 val result = sshService?.connect(connection)
                 loadingDialog.dismiss()
 
@@ -409,7 +428,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun showAddConnectionDialog(existingConnection: SshConnection? = null) {
         val dialogBinding = DialogAddConnectionBinding.inflate(layoutInflater)
-        val isEditing = existingConnection != null
+        val isEditing = existingConnection != null && existingConnection.id != 0L
 
         val themes = TerminalTheme.ALL_THEMES.map { it.name }
         val themeAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, themes)
@@ -434,6 +453,18 @@ class MainActivity : AppCompatActivity() {
                 dialogBinding.authToggle.check(R.id.authPassword)
                 dialogBinding.passwordInput.setText(conn.password)
             }
+
+            // WOL fields
+            dialogBinding.wolSwitch.isChecked = conn.wolEnabled
+            dialogBinding.wolSection.visibility = if (conn.wolEnabled) View.VISIBLE else View.GONE
+            dialogBinding.wolMacInput.setText(conn.wolMacAddress ?: "")
+            dialogBinding.wolBroadcastInput.setText(conn.wolBroadcastAddress ?: "")
+            dialogBinding.wolPortInput.setText(conn.wolPort.toString())
+        }
+
+        // WOL switch listener
+        dialogBinding.wolSwitch.setOnCheckedChangeListener { _, isChecked ->
+            dialogBinding.wolSection.visibility = if (isChecked) View.VISIBLE else View.GONE
         }
 
         dialogBinding.authToggle.addOnButtonCheckedListener { _, checkedId, isChecked ->
@@ -475,6 +506,12 @@ class MainActivity : AppCompatActivity() {
                 val privateKey = if (isKeyAuth) pendingKeyContent else null
                 val keyPassphrase = if (isKeyAuth) dialogBinding.keyPassphraseInput.text.toString().takeIf { it.isNotEmpty() } else null
 
+                // WOL fields
+                val wolEnabled = dialogBinding.wolSwitch.isChecked
+                val wolMac = dialogBinding.wolMacInput.text.toString().trim()
+                val wolBroadcast = dialogBinding.wolBroadcastInput.text.toString().trim().takeIf { it.isNotEmpty() }
+                val wolPort = dialogBinding.wolPortInput.text.toString().toIntOrNull() ?: 9
+
                 if (name.isEmpty()) {
                     dialogBinding.nameLayout.error = "Name is required"
                     return@setOnClickListener
@@ -495,6 +532,14 @@ class MainActivity : AppCompatActivity() {
                     Toast.makeText(this, "Please select a private key", Toast.LENGTH_SHORT).show()
                     return@setOnClickListener
                 }
+                if (wolEnabled && wolMac.isEmpty()) {
+                    dialogBinding.wolMacLayout.error = "MAC address is required for WOL"
+                    return@setOnClickListener
+                }
+                if (wolEnabled && !WakeOnLan.isValidMacAddress(wolMac)) {
+                    dialogBinding.wolMacLayout.error = "Invalid MAC address format"
+                    return@setOnClickListener
+                }
 
                 val connection = SshConnection(
                     id = existingConnection?.id ?: 0,
@@ -508,7 +553,11 @@ class MainActivity : AppCompatActivity() {
                     privateKeyPassphrase = keyPassphrase,
                     colorTheme = theme,
                     createdAt = existingConnection?.createdAt ?: System.currentTimeMillis(),
-                    lastConnectedAt = existingConnection?.lastConnectedAt
+                    lastConnectedAt = existingConnection?.lastConnectedAt,
+                    wolEnabled = wolEnabled,
+                    wolMacAddress = if (wolEnabled && wolMac.isNotEmpty()) WakeOnLan.formatMacAddress(wolMac) else null,
+                    wolBroadcastAddress = if (wolEnabled) wolBroadcast else null,
+                    wolPort = wolPort
                 )
 
                 if (isEditing) {
@@ -527,6 +576,16 @@ class MainActivity : AppCompatActivity() {
 
     private fun showEditConnectionDialog(connection: SshConnection) {
         showAddConnectionDialog(connection)
+    }
+
+    private fun showDuplicateConnectionDialog(connection: SshConnection) {
+        val duplicatedConnection = connection.copy(
+            id = 0,
+            name = "${connection.name} (copy)",
+            createdAt = System.currentTimeMillis(),
+            lastConnectedAt = null
+        )
+        showAddConnectionDialog(duplicatedConnection)
     }
 
     private fun showDeleteConfirmation(connection: SshConnection) {
