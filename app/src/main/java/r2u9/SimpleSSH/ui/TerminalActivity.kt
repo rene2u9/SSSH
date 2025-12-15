@@ -35,6 +35,7 @@ import r2u9.SimpleSSH.service.SshConnectionService
 import r2u9.SimpleSSH.ssh.SshSession
 import r2u9.SimpleSSH.terminal.TerminalEmulator
 import r2u9.SimpleSSH.util.AppPreferences
+import r2u9.SimpleSSH.util.BiometricHelper
 
 class TerminalActivity : AppCompatActivity() {
 
@@ -272,6 +273,9 @@ class TerminalActivity : AppCompatActivity() {
         binding.terminalView.setOnLongPressListener { x, y ->
             showContextMenu(x, y)
         }
+        binding.terminalView.setOnFontSizeChangedListener { newSize ->
+            prefs.defaultFontSize = newSize.toInt()
+        }
     }
 
     private fun showContextMenu(x: Float, y: Float) {
@@ -357,11 +361,22 @@ class TerminalActivity : AppCompatActivity() {
     }
 
     private fun pastePassword() {
-        val activeSession = sessionId?.let { sshService?.getActiveSession(it) }
-        val password = activeSession?.connection?.password
-        if (!password.isNullOrEmpty()) {
-            sendInput(password)
-        }
+        BiometricHelper.authenticateIfEnabled(
+            activity = this,
+            prefs = prefs,
+            title = "Authenticate",
+            subtitle = "Verify your identity to paste password",
+            onSuccess = {
+                val activeSession = sessionId?.let { sshService?.getActiveSession(it) }
+                val password = activeSession?.connection?.password
+                if (!password.isNullOrEmpty()) {
+                    sendInput(password)
+                }
+            },
+            onError = { error ->
+                Toast.makeText(this, "Authentication failed: $error", Toast.LENGTH_SHORT).show()
+            }
+        )
     }
 
     private fun processInput(input: String): String {

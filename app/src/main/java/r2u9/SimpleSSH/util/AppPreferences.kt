@@ -32,6 +32,10 @@ class AppPreferences(context: Context) {
         get() = prefs.getInt(KEY_SCROLLBACK_LINES, 2000)
         set(value) = prefs.edit().putInt(KEY_SCROLLBACK_LINES, value).apply()
 
+    var biometricEnabled: Boolean
+        get() = prefs.getBoolean(KEY_BIOMETRIC_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_BIOMETRIC_ENABLED, value).apply()
+
     enum class VolumeKeyAction(val displayName: String) {
         NONE("None"),
         UP_ARROW("Up Arrow"),
@@ -57,6 +61,7 @@ class AppPreferences(context: Context) {
         private const val KEY_VOLUME_DOWN_ACTION = "volume_down_action"
         private const val KEY_SHOW_EXTRA_KEYS = "show_extra_keys"
         private const val KEY_SCROLLBACK_LINES = "scrollback_lines"
+        private const val KEY_BIOMETRIC_ENABLED = "biometric_enabled"
 
         @Volatile
         private var instance: AppPreferences? = null

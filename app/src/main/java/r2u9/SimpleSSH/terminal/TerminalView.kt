@@ -11,6 +11,7 @@ import android.util.TypedValue
 import android.view.GestureDetector
 import android.view.KeyEvent
 import android.view.MotionEvent
+import android.view.ScaleGestureDetector
 import android.view.View
 import android.view.inputmethod.BaseInputConnection
 import android.view.inputmethod.EditorInfo
@@ -37,6 +38,12 @@ class TerminalView @JvmOverloads constructor(
     private var onKeyInput: ((String) -> Unit)? = null
     private var onDoubleTap: (() -> Unit)? = null
     private var onLongPress: ((Float, Float) -> Unit)? = null
+    private var onFontSizeChanged: ((Float) -> Unit)? = null
+
+    // Pinch-to-zoom state
+    private var isScaling = false
+    private val minFontSize = 8f
+    private val maxFontSize = 32f
 
     // Selection state
     private var isSelecting = false
@@ -137,6 +144,27 @@ class TerminalView @JvmOverloads constructor(
         }
     })
 
+    private val scaleGestureDetector = ScaleGestureDetector(context, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+        override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
+            isScaling = true
+            return true
+        }
+
+        override fun onScale(detector: ScaleGestureDetector): Boolean {
+            val scaleFactor = detector.scaleFactor
+            val newSize = (textSizeSp * scaleFactor).coerceIn(minFontSize, maxFontSize)
+            if (newSize != textSizeSp) {
+                setTextSize(newSize)
+                onFontSizeChanged?.invoke(newSize)
+            }
+            return true
+        }
+
+        override fun onScaleEnd(detector: ScaleGestureDetector) {
+            isScaling = false
+        }
+    })
+
     private fun spToPx(sp: Float): Float {
         return TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_SP,
@@ -175,6 +203,10 @@ class TerminalView @JvmOverloads constructor(
 
     fun setOnLongPressListener(listener: (Float, Float) -> Unit) {
         onLongPress = listener
+    }
+
+    fun setOnFontSizeChangedListener(listener: (Float) -> Unit) {
+        onFontSizeChanged = listener
     }
 
     fun setEmulator(emulator: TerminalEmulator) {
@@ -297,7 +329,13 @@ class TerminalView @JvmOverloads constructor(
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        gestureDetector.onTouchEvent(event)
+        // Process scale gesture first
+        scaleGestureDetector.onTouchEvent(event)
+
+        // Don't process other gestures while scaling
+        if (!isScaling) {
+            gestureDetector.onTouchEvent(event)
+        }
 
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
@@ -307,7 +345,7 @@ class TerminalView @JvmOverloads constructor(
                 scrollAccumulator = 0f
             }
             MotionEvent.ACTION_MOVE -> {
-                if (isSelecting) {
+                if (isSelecting && !isScaling) {
                     val col = ((event.x - paddingLeft) / charWidth).toInt().coerceIn(0, (emulator?.getColumns() ?: 1) - 1)
                     val row = ((event.y - paddingTop) / charHeight).toInt().coerceIn(0, (emulator?.getRows() ?: 1) - 1)
                     selectionEndX = col

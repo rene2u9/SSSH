@@ -32,6 +32,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import r2u9.SimpleSSH.data.model.ActiveSession
 import r2u9.SimpleSSH.data.model.AuthType
 import r2u9.SimpleSSH.data.model.SshConnection
 import r2u9.SimpleSSH.data.model.TerminalTheme
@@ -44,6 +45,8 @@ import r2u9.SimpleSSH.ui.adapter.ActiveSessionAdapter
 import r2u9.SimpleSSH.ui.adapter.ConnectionAdapter
 import r2u9.SimpleSSH.ui.adapter.HostStatus
 import r2u9.SimpleSSH.ui.viewmodel.MainViewModel
+import r2u9.SimpleSSH.util.AppPreferences
+import r2u9.SimpleSSH.util.BiometricHelper
 import r2u9.SimpleSSH.util.ConfigExporter
 import java.net.InetSocketAddress
 import java.net.Socket
@@ -58,6 +61,7 @@ class MainActivity : AppCompatActivity() {
 
     private var sshService: SshConnectionService? = null
     private var serviceBound = false
+    private lateinit var prefs: AppPreferences
 
     private val handler = Handler(Looper.getMainLooper())
     private val updateRunnable = object : Runnable {
@@ -120,6 +124,8 @@ class MainActivity : AppCompatActivity() {
             insets
         }
 
+        prefs = AppPreferences.getInstance(this)
+
         setupToolbar()
         setupRecyclerViews()
         setupFab()
@@ -180,7 +186,18 @@ class MainActivity : AppCompatActivity() {
                     true
                 }
                 R.id.action_export -> {
-                    exportLauncher.launch("vibessh_connections.json")
+                    BiometricHelper.authenticateIfEnabled(
+                        activity = this,
+                        prefs = prefs,
+                        title = "Authenticate",
+                        subtitle = "Verify your identity to export connections",
+                        onSuccess = {
+                            exportLauncher.launch("vibessh_connections.json")
+                        },
+                        onError = { error ->
+                            showError("Authentication failed: $error")
+                        }
+                    )
                     true
                 }
                 R.id.action_settings -> {
@@ -319,6 +336,40 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun connectTo(connection: SshConnection) {
+        BiometricHelper.authenticateIfEnabled(
+            activity = this,
+            prefs = prefs,
+            title = "Authenticate",
+            subtitle = "Verify your identity to connect",
+            onSuccess = {
+                val existingSession = sshService?.findExistingSession(connection)
+                if (existingSession != null) {
+                    showExistingSessionDialog(existingSession, connection)
+                } else {
+                    performConnection(connection)
+                }
+            },
+            onError = { error ->
+                showError("Authentication failed: $error")
+            }
+        )
+    }
+
+    private fun showExistingSessionDialog(existingSession: ActiveSession, connection: SshConnection) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Session Already Active")
+            .setMessage("A session to ${connection.username}@${connection.host}:${connection.port} is already active.\n\nWould you like to return to the existing session or create a new one?")
+            .setPositiveButton("Return to Session") { _, _ ->
+                openTerminal(existingSession.sessionId, existingSession.connection)
+            }
+            .setNegativeButton("New Session") { _, _ ->
+                performConnection(connection)
+            }
+            .setNeutralButton("Cancel", null)
+            .show()
+    }
+
+    private fun performConnection(connection: SshConnection) {
         lifecycleScope.launch {
             val loadingDialog = MaterialAlertDialogBuilder(this@MainActivity)
                 .setTitle("Connecting")

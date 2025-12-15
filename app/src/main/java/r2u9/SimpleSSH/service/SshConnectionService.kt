@@ -209,6 +209,14 @@ class SshConnectionService : Service() {
 
     fun getAllActiveSessions(): List<ActiveSession> = activeSessions.values.toList()
 
+    fun findExistingSession(connection: SshConnection): ActiveSession? {
+        return activeSessions.values.find { session ->
+            session.connection.host == connection.host &&
+            session.connection.port == connection.port &&
+            session.connection.username == connection.username
+        }
+    }
+
     fun getOrCreateEmulator(sessionId: String): TerminalEmulator {
         return sessionEmulators.getOrPut(sessionId) {
             val prefs = AppPreferences.getInstance(this)

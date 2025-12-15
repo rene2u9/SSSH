@@ -3,6 +3,7 @@ package r2u9.SimpleSSH.ui
 import android.os.Bundle
 import android.widget.SeekBar
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -12,6 +13,7 @@ import r2u9.SimpleSSH.R
 import r2u9.SimpleSSH.data.model.TerminalTheme
 import r2u9.SimpleSSH.databinding.ActivitySettingsBinding
 import r2u9.SimpleSSH.util.AppPreferences
+import r2u9.SimpleSSH.util.BiometricHelper
 
 class SettingsActivity : AppCompatActivity() {
 
@@ -73,6 +75,48 @@ class SettingsActivity : AppCompatActivity() {
 
         binding.scrollbackRow.setOnClickListener {
             showScrollbackDialog()
+        }
+
+        setupBiometricSwitch()
+    }
+
+    private fun setupBiometricSwitch() {
+        val canUseBiometric = BiometricHelper.canAuthenticate(this)
+        binding.biometricSwitch.isEnabled = canUseBiometric
+        binding.biometricSwitch.isChecked = prefs.biometricEnabled && canUseBiometric
+
+        if (!canUseBiometric) {
+            binding.biometricDescription.text = "Biometric authentication not available"
+        }
+
+        binding.biometricSwitch.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                // Verify biometric works before enabling
+                BiometricHelper.authenticate(
+                    activity = this,
+                    title = "Enable Biometric",
+                    subtitle = "Verify your identity to enable biometric protection",
+                    onSuccess = {
+                        prefs.biometricEnabled = true
+                        Toast.makeText(this, "Biometric protection enabled", Toast.LENGTH_SHORT).show()
+                    },
+                    onError = { error ->
+                        binding.biometricSwitch.isChecked = false
+                        Toast.makeText(this, "Failed: $error", Toast.LENGTH_SHORT).show()
+                    },
+                    onFailed = {
+                        // Don't disable on failed attempt, let user retry
+                    }
+                )
+            } else {
+                prefs.biometricEnabled = false
+            }
+        }
+
+        binding.biometricRow.setOnClickListener {
+            if (canUseBiometric) {
+                binding.biometricSwitch.toggle()
+            }
         }
     }
 
