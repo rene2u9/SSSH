@@ -21,7 +21,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
+import r2u9.SimpleSSH.ui.BaseActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
@@ -45,14 +45,13 @@ import r2u9.SimpleSSH.ui.adapter.ActiveSessionAdapter
 import r2u9.SimpleSSH.ui.adapter.ConnectionAdapter
 import r2u9.SimpleSSH.ui.adapter.HostStatus
 import r2u9.SimpleSSH.ui.viewmodel.MainViewModel
-import r2u9.SimpleSSH.util.AppPreferences
 import r2u9.SimpleSSH.util.BiometricHelper
 import r2u9.SimpleSSH.util.ConfigExporter
 import r2u9.SimpleSSH.util.WakeOnLan
 import java.net.InetSocketAddress
 import java.net.Socket
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : BaseActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private val viewModel: MainViewModel by viewModels()
@@ -62,7 +61,6 @@ class MainActivity : AppCompatActivity() {
 
     private var sshService: SshConnectionService? = null
     private var serviceBound = false
-    private lateinit var prefs: AppPreferences
 
     private val handler = Handler(Looper.getMainLooper())
     private val updateRunnable = object : Runnable {
@@ -91,18 +89,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private val importLauncher = registerForActivityResult(
-        ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        uri?.let { importFromFile(it) }
-    }
-
-    private val exportLauncher = registerForActivityResult(
-        ActivityResultContracts.CreateDocument("application/json")
-    ) { uri ->
-        uri?.let { exportToFile(it) }
-    }
-
     private val keyFileLauncher = registerForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri ->
@@ -125,20 +111,16 @@ class MainActivity : AppCompatActivity() {
             insets
         }
 
-        prefs = AppPreferences.getInstance(this)
-
         setupToolbar()
         setupRecyclerViews()
         setupFab()
         setupSwipeRefresh()
         observeData()
 
-        // Request notification permission after UI is ready
         if (savedInstanceState == null) {
             handler.post { requestNotificationPermission() }
         }
 
-        // Start and bind to the service
         Intent(this, SshConnectionService::class.java).also { intent ->
             startService(intent)
             bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
@@ -148,7 +130,6 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         handler.post(updateRunnable)
-        // Refresh host status when returning to activity
         if (connectionAdapter.currentList.isNotEmpty()) {
             refreshHostStatus()
         }
@@ -182,25 +163,6 @@ class MainActivity : AppCompatActivity() {
     private fun setupToolbar() {
         binding.toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
-                R.id.action_import -> {
-                    importLauncher.launch(arrayOf("application/json", "*/*"))
-                    true
-                }
-                R.id.action_export -> {
-                    BiometricHelper.authenticateIfEnabled(
-                        activity = this,
-                        prefs = prefs,
-                        title = "Authenticate",
-                        subtitle = "Verify your identity to export connections",
-                        onSuccess = {
-                            exportLauncher.launch("vibessh_connections.json")
-                        },
-                        onError = { error ->
-                            showError("Authentication failed: $error")
-                        }
-                    )
-                    true
-                }
                 R.id.action_settings -> {
                     startActivity(Intent(this, SettingsActivity::class.java))
                     true
@@ -303,7 +265,6 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             viewModel.connections.collectLatest { connections ->
                 connectionAdapter.submitList(connections) {
-                    // Callback runs after DiffUtil finishes
                     updateEmptyState(connections.isEmpty())
                     if (connections.isNotEmpty()) {
                         refreshHostStatus()
@@ -382,7 +343,6 @@ class MainActivity : AppCompatActivity() {
             loadingDialog.show()
 
             try {
-                // Send WOL packet if enabled
                 if (connection.wolEnabled && !connection.wolMacAddress.isNullOrEmpty()) {
                     val wolResult = WakeOnLan.sendMagicPacket(
                         macAddress = connection.wolMacAddress,
@@ -394,9 +354,8 @@ class MainActivity : AppCompatActivity() {
                         showError("Wake-on-LAN failed: ${error.message}")
                         return@launch
                     }
-                    // Update dialog message and wait for host to wake up
                     loadingDialog.setMessage("Waiting for ${connection.host} to wake up...")
-                    kotlinx.coroutines.delay(3000) // Wait 3 seconds for host to start booting
+                    kotlinx.coroutines.delay(3000)
                 }
 
                 loadingDialog.setMessage("Connecting to ${connection.host}...")
@@ -435,6 +394,7 @@ class MainActivity : AppCompatActivity() {
         val themes = TerminalTheme.ALL_THEMES.map { it.name }
         val themeAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, themes)
         (dialogBinding.themeDropdown as? AutoCompleteTextView)?.setAdapter(themeAdapter)
+        dialogBinding.themeDropdown.setText(prefs.defaultTheme, false)
 
         existingConnection?.let { conn ->
             dialogBinding.nameInput.setText(conn.name)
@@ -456,7 +416,6 @@ class MainActivity : AppCompatActivity() {
                 dialogBinding.passwordInput.setText(conn.password)
             }
 
-            // WOL fields
             dialogBinding.wolSwitch.isChecked = conn.wolEnabled
             dialogBinding.wolSection.visibility = if (conn.wolEnabled) View.VISIBLE else View.GONE
             dialogBinding.wolMacInput.setText(conn.wolMacAddress ?: "")
@@ -464,7 +423,6 @@ class MainActivity : AppCompatActivity() {
             dialogBinding.wolPortInput.setText(conn.wolPort.toString())
         }
 
-        // WOL switch listener
         dialogBinding.wolSwitch.setOnCheckedChangeListener { _, isChecked ->
             dialogBinding.wolSection.visibility = if (isChecked) View.VISIBLE else View.GONE
         }
@@ -507,8 +465,6 @@ class MainActivity : AppCompatActivity() {
                 val password = if (!isKeyAuth) dialogBinding.passwordInput.text.toString() else null
                 val privateKey = if (isKeyAuth) pendingKeyContent else null
                 val keyPassphrase = if (isKeyAuth) dialogBinding.keyPassphraseInput.text.toString().takeIf { it.isNotEmpty() } else null
-
-                // WOL fields
                 val wolEnabled = dialogBinding.wolSwitch.isChecked
                 val wolMac = dialogBinding.wolMacInput.text.toString().trim()
                 val wolBroadcast = dialogBinding.wolBroadcastInput.text.toString().trim().takeIf { it.isNotEmpty() }
@@ -607,30 +563,6 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Private key loaded", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
             showError("Failed to load key: ${e.message}")
-        }
-    }
-
-    private fun importFromFile(uri: Uri) {
-        try {
-            val content = ConfigExporter.readFromUri(this, uri)
-            val connections = ConfigExporter.importConnections(content)
-            viewModel.importConnections(connections)
-            Snackbar.make(binding.root, "Imported ${connections.size} connections", Snackbar.LENGTH_SHORT).show()
-        } catch (e: Exception) {
-            showError("Import failed: ${e.message}")
-        }
-    }
-
-    private fun exportToFile(uri: Uri) {
-        lifecycleScope.launch {
-            try {
-                val connections = viewModel.getAllConnectionsForExport()
-                val content = ConfigExporter.exportConnections(connections)
-                ConfigExporter.writeToUri(this@MainActivity, uri, content)
-                Snackbar.make(binding.root, "Exported ${connections.size} connections", Snackbar.LENGTH_SHORT).show()
-            } catch (e: Exception) {
-                showError("Export failed: ${e.message}")
-            }
         }
     }
 

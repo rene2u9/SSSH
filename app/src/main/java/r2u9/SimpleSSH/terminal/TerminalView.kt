@@ -40,12 +40,10 @@ class TerminalView @JvmOverloads constructor(
     private var onLongPress: ((Float, Float) -> Unit)? = null
     private var onFontSizeChanged: ((Float) -> Unit)? = null
 
-    // Pinch-to-zoom state
     private var isScaling = false
     private val minFontSize = 8f
     private val maxFontSize = 32f
 
-    // Selection state
     private var isSelecting = false
     private var selectionStartX = 0
     private var selectionStartY = 0
@@ -56,7 +54,6 @@ class TerminalView @JvmOverloads constructor(
         style = Paint.Style.FILL
     }
 
-    // Scroll state
     private var scrollAccumulator = 0f
     private val scrollThreshold: Float
         get() = charHeight
@@ -75,7 +72,6 @@ class TerminalView @JvmOverloads constructor(
             if (isSelecting) {
                 clearSelection()
             } else {
-                // Scroll to bottom on tap if scrolled up, otherwise show keyboard
                 val emu = emulator
                 if (emu != null && !emu.isAtBottom()) {
                     emu.scrollToBottom()
@@ -105,17 +101,13 @@ class TerminalView @JvmOverloads constructor(
 
             val emu = emulator ?: return false
 
-            // Accumulate scroll distance (inverted for natural scrolling)
             scrollAccumulator -= distanceY
 
-            // Convert accumulated distance to lines
             val linesToScroll = (scrollAccumulator / scrollThreshold).toInt()
             if (linesToScroll != 0) {
                 if (linesToScroll > 0) {
-                    // Finger moving up = showing older content (scroll up into history)
                     emu.scrollViewUp(linesToScroll)
                 } else {
-                    // Finger moving down = showing newer content (scroll down)
                     emu.scrollViewDown(-linesToScroll)
                 }
                 scrollAccumulator -= linesToScroll * scrollThreshold
@@ -133,7 +125,6 @@ class TerminalView @JvmOverloads constructor(
 
             val emu = emulator ?: return false
 
-            // Quick fling for fast scrolling (inverted for natural scrolling)
             val linesToScroll = (-velocityY / 500).toInt().coerceIn(-20, 20)
             if (linesToScroll > 0) {
                 emu.scrollViewUp(linesToScroll)
@@ -273,12 +264,10 @@ class TerminalView @JvmOverloads constructor(
                     canvas.drawRect(xPos, yPos, xPos + charWidth, yPos + charHeight, paint)
                 }
 
-                // Draw selection highlight
                 if (isSelecting && isCellSelected(x, y)) {
                     canvas.drawRect(xPos, yPos, xPos + charWidth, yPos + charHeight, selectionPaint)
                 }
 
-                // Only show cursor when at bottom (current view)
                 if (isAtBottom && x == emu.getCursorX() && y == emu.getCursorY() && cursorVisible && emu.isCursorVisible()) {
                     paint.color = theme.cursorColor
                     canvas.drawRect(xPos, yPos, xPos + charWidth, yPos + charHeight, paint)
@@ -309,7 +298,6 @@ class TerminalView @JvmOverloads constructor(
         var eX = selectionEndX
         var eY = selectionEndY
 
-        // Normalize
         if (sY > eY || (sY == eY && sX > eX)) {
             val tmpX = sX
             val tmpY = sY
@@ -329,10 +317,8 @@ class TerminalView @JvmOverloads constructor(
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        // Process scale gesture first
         scaleGestureDetector.onTouchEvent(event)
 
-        // Don't process other gestures while scaling
         if (!isScaling) {
             gestureDetector.onTouchEvent(event)
         }
@@ -381,7 +367,6 @@ class TerminalView @JvmOverloads constructor(
         return emulator?.getSelectedText(selectionStartX, selectionStartY, selectionEndX, selectionEndY)
     }
 
-    // Scrollback control methods
     fun scrollUp(lines: Int = 1) = emulator?.scrollViewUp(lines)
     fun scrollDown(lines: Int = 1) = emulator?.scrollViewDown(lines)
     fun scrollToTop() = emulator?.scrollToTop()
@@ -409,7 +394,6 @@ class TerminalView @JvmOverloads constructor(
     override fun onCheckIsTextEditor(): Boolean = true
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
-        // Auto-scroll to bottom when user types
         emulator?.scrollToBottom()
 
         val input = when (keyCode) {
@@ -459,7 +443,6 @@ class TerminalView @JvmOverloads constructor(
 
     private inner class TerminalInputConnection(view: View, fullEditor: Boolean) : BaseInputConnection(view, fullEditor) {
         override fun commitText(text: CharSequence?, newCursorPosition: Int): Boolean {
-            // Auto-scroll to bottom when user types
             emulator?.scrollToBottom()
             text?.toString()?.let { onKeyInput?.invoke(it) }
             return true

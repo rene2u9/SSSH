@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Accent Color Styles -->
+    <style name="AccentTeal" parent="">
+        <item name="colorPrimary">#00BFA5</item>
+        <item name="colorPrimaryContainer">#004D43</item>
+        <item name="colorOnPrimaryContainer">#6FFADF</item>
+    </style>
+
+    <style name="AccentBlue" parent="">
+        <item name="colorPrimary">#2196F3</item>
+        <item name="colorPrimaryContainer">#0D47A1</item>
+        <item name="colorOnPrimaryContainer">#90CAF9</item>
+    </style>
+
+    <style name="AccentPurple" parent="">
+        <item name="colorPrimary">#9C27B0</item>
+        <item name="colorPrimaryContainer">#4A148C</item>
+        <item name="colorOnPrimaryContainer">#E1BEE7</item>
+    </style>
+
+    <style name="AccentPink" parent="">
+        <item name="colorPrimary">#E91E63</item>
+        <item name="colorPrimaryContainer">#880E4F</item>
+        <item name="colorOnPrimaryContainer">#F8BBD9</item>
+    </style>
+
+    <style name="AccentRed" parent="">
+        <item name="colorPrimary">#F44336</item>
+        <item name="colorPrimaryContainer">#B71C1C</item>
+        <item name="colorOnPrimaryContainer">#FFCDD2</item>
+    </style>
+
+    <style name="AccentOrange" parent="">
+        <item name="colorPrimary">#FF9800</item>
+        <item name="colorPrimaryContainer">#E65100</item>
+        <item name="colorOnPrimaryContainer">#FFE0B2</item>
+    </style>
+
+    <style name="AccentYellow" parent="">
+        <item name="colorPrimary">#FFEB3B</item>
+        <item name="colorPrimaryContainer">#F57F17</item>
+        <item name="colorOnPrimaryContainer">#FFF9C4</item>
+    </style>
+
+    <style name="AccentGreen" parent="">
+        <item name="colorPrimary">#4CAF50</item>
+        <item name="colorPrimaryContainer">#1B5E20</item>
+        <item name="colorOnPrimaryContainer">#C8E6C9</item>
+    </style>
+
+    <style name="AccentCyan" parent="">
+        <item name="colorPrimary">#00BCD4</item>
+        <item name="colorPrimaryContainer">#006064</item>
+        <item name="colorOnPrimaryContainer">#B2EBF2</item>
+    </style>
+
+    <style name="AccentIndigo" parent="">
+        <item name="colorPrimary">#3F51B5</item>
+        <item name="colorPrimaryContainer">#1A237E</item>
+        <item name="colorOnPrimaryContainer">#C5CAE9</item>
+    </style>
+</resources>

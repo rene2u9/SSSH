@@ -24,18 +24,6 @@ import r2u9.SimpleSSH.terminal.TerminalEmulator
 import r2u9.SimpleSSH.ui.TerminalActivity
 import r2u9.SimpleSSH.util.AppPreferences
 
-/**
- * Foreground service that manages SSH connections and their lifecycle.
- *
- * This service:
- * - Maintains active SSH sessions in the background
- * - Provides persistent notifications for each session
- * - Handles session creation, disconnection, and cleanup
- * - Manages terminal emulators associated with each session
- *
- * The service runs as a foreground service to prevent Android from killing
- * SSH connections when the app is in the background.
- */
 class SshConnectionService : Service() {
 
     private val binder = LocalBinder()
@@ -46,7 +34,6 @@ class SshConnectionService : Service() {
     private var nextNotificationId = NOTIFICATION_ID_BASE + 1
     private var updateJob: Job? = null
 
-    /** Callback invoked when the list of active sessions changes. */
     var onSessionsChanged: (() -> Unit)? = null
 
     inner class LocalBinder : Binder() {
@@ -74,7 +61,6 @@ class SshConnectionService : Service() {
                 sessionId?.let { openSession(it) }
             }
             else -> {
-                // Ensure notification channel exists and service is ready
                 createNotificationChannels()
             }
         }
@@ -92,7 +78,6 @@ class SshConnectionService : Service() {
     private fun createNotificationChannels() {
         val notificationManager = getSystemService(NotificationManager::class.java)
 
-        // Main service channel (low importance for the foreground service)
         val serviceChannel = NotificationChannel(
             CHANNEL_ID_SERVICE,
             "SSH Service",
@@ -103,7 +88,6 @@ class SshConnectionService : Service() {
         }
         notificationManager.createNotificationChannel(serviceChannel)
 
-        // Individual sessions channel (default importance for session notifications)
         val sessionsChannel = NotificationChannel(
             CHANNEL_ID_SESSIONS,
             "Active Sessions",
@@ -117,15 +101,8 @@ class SshConnectionService : Service() {
         notificationManager.createNotificationChannel(sessionsChannel)
     }
 
-    /**
-     * Establishes an SSH connection using the provided connection details.
-     *
-     * @param connection The SSH connection configuration
-     * @return Result containing the session ID on success, or the error on failure
-     */
     suspend fun connect(connection: SshConnection): Result<String> {
         Log.d(TAG, "connect() called for ${connection.host}")
-        // Start foreground before making the connection (required for Android 14+)
         try {
             Log.d(TAG, "Starting foreground service...")
             startForegroundWithPlaceholder()
@@ -146,7 +123,6 @@ class SshConnectionService : Service() {
                 )
                 activeSessions[session.id] = activeSession
 
-                // Assign notification ID for this session
                 sessionNotificationIds[session.id] = nextNotificationId++
 
                 updateServiceNotification()
@@ -157,7 +133,6 @@ class SshConnectionService : Service() {
             },
             onFailure = { error ->
                 Log.e(TAG, "SSH connection failed", error)
-                // If connection failed and no other sessions, stop foreground
                 if (activeSessions.isEmpty()) {
                     stopForeground(STOP_FOREGROUND_REMOVE)
                 }
@@ -195,11 +170,6 @@ class SshConnectionService : Service() {
         startActivity(intent)
     }
 
-    /**
-     * Disconnects a specific SSH session.
-     *
-     * @param sessionId The ID of the session to disconnect
-     */
     fun disconnect(sessionId: String) {
         SshManager.closeSession(sessionId)
         activeSessions.remove(sessionId)
@@ -215,7 +185,6 @@ class SshConnectionService : Service() {
         }
     }
 
-    /** Disconnects all active SSH sessions and stops the service. */
     fun disconnectAll() {
         SshManager.closeAllSessions()
         cancelAllSessionNotifications()
@@ -228,21 +197,12 @@ class SshConnectionService : Service() {
         onSessionsChanged?.invoke()
     }
 
-    /** Returns the SSH session for the given ID, or null if not found. */
     fun getSession(sessionId: String): SshSession? = SshManager.getSession(sessionId)
 
-    /** Returns the active session metadata for the given ID, or null if not found. */
     fun getActiveSession(sessionId: String): ActiveSession? = activeSessions[sessionId]
 
-    /** Returns a list of all active sessions. */
     fun getAllActiveSessions(): List<ActiveSession> = activeSessions.values.toList()
 
-    /**
-     * Finds an existing session that matches the given connection's host, port, and username.
-     *
-     * @param connection The connection to match against
-     * @return The matching active session, or null if no match is found
-     */
     fun findExistingSession(connection: SshConnection): ActiveSession? {
         return activeSessions.values.find { session ->
             session.connection.host == connection.host &&
@@ -251,12 +211,6 @@ class SshConnectionService : Service() {
         }
     }
 
-    /**
-     * Gets or creates a terminal emulator for the given session.
-     *
-     * @param sessionId The session ID
-     * @return The terminal emulator for the session
-     */
     fun getOrCreateEmulator(sessionId: String): TerminalEmulator {
         return sessionEmulators.getOrPut(sessionId) {
             val prefs = AppPreferences.getInstance(this)
@@ -264,10 +218,8 @@ class SshConnectionService : Service() {
         }
     }
 
-    /** Returns the terminal emulator for the given session, or null if not found. */
     fun getEmulator(sessionId: String): TerminalEmulator? = sessionEmulators[sessionId]
 
-    /** Returns the number of currently active sessions. */
     fun getActiveSessionCount(): Int = activeSessions.size
 
     private fun startNotificationUpdates() {
@@ -349,8 +301,6 @@ class SshConnectionService : Service() {
         val notificationId = sessionNotificationIds[session.sessionId] ?: return
         val notificationManager = getSystemService(NotificationManager::class.java)
 
-        // Open terminal intent - use PendingIntent.getActivity directly to avoid
-        // background activity start restrictions on Android 12+
         val openIntent = Intent(this, TerminalActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra(TerminalActivity.EXTRA_SESSION_ID, session.sessionId)
@@ -362,7 +312,6 @@ class SshConnectionService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Disconnect intent
         val disconnectIntent = Intent(this, SshConnectionService::class.java).apply {
             action = ACTION_DISCONNECT_SESSION
             putExtra(EXTRA_SESSION_ID, session.sessionId)

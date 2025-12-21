@@ -36,6 +36,37 @@ class AppPreferences(context: Context) {
         get() = prefs.getBoolean(KEY_BIOMETRIC_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_BIOMETRIC_ENABLED, value).apply()
 
+    var accentColor: Int
+        get() = prefs.getInt(KEY_ACCENT_COLOR, AccentColor.TEAL.colorValue)
+        set(value) = prefs.edit().putInt(KEY_ACCENT_COLOR, value).apply()
+
+    var accentColorName: String
+        get() = prefs.getString(KEY_ACCENT_COLOR_NAME, AccentColor.TEAL.displayName) ?: AccentColor.TEAL.displayName
+        set(value) = prefs.edit().putString(KEY_ACCENT_COLOR_NAME, value).apply()
+
+    enum class AccentColor(val displayName: String, val colorValue: Int) {
+        TEAL("Teal", 0xFF00BFA5.toInt()),
+        BLUE("Blue", 0xFF2196F3.toInt()),
+        PURPLE("Purple", 0xFF9C27B0.toInt()),
+        PINK("Pink", 0xFFE91E63.toInt()),
+        RED("Red", 0xFFF44336.toInt()),
+        ORANGE("Orange", 0xFFFF9800.toInt()),
+        YELLOW("Yellow", 0xFFFFEB3B.toInt()),
+        GREEN("Green", 0xFF4CAF50.toInt()),
+        CYAN("Cyan", 0xFF00BCD4.toInt()),
+        INDIGO("Indigo", 0xFF3F51B5.toInt());
+
+        companion object {
+            fun fromName(name: String): AccentColor {
+                return entries.find { it.displayName == name } ?: TEAL
+            }
+
+            fun fromColor(color: Int): AccentColor {
+                return entries.find { it.colorValue == color } ?: TEAL
+            }
+        }
+    }
+
     enum class VolumeKeyAction(val displayName: String) {
         NONE("None"),
         UP_ARROW("Up Arrow"),
@@ -62,6 +93,8 @@ class AppPreferences(context: Context) {
         private const val KEY_SHOW_EXTRA_KEYS = "show_extra_keys"
         private const val KEY_SCROLLBACK_LINES = "scrollback_lines"
         private const val KEY_BIOMETRIC_ENABLED = "biometric_enabled"
+        private const val KEY_ACCENT_COLOR = "accent_color"
+        private const val KEY_ACCENT_COLOR_NAME = "accent_color_name"
 
         @Volatile
         private var instance: AppPreferences? = null

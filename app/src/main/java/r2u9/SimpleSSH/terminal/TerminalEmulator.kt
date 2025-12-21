@@ -28,9 +28,8 @@ class TerminalEmulator(
     private var screen: Array<Array<TerminalChar>> = mainScreen
     private var useAltScreen = false
 
-    // Scrollback buffer - stores lines that scrolled off the top
     private val scrollbackBuffer = ArrayDeque<Array<TerminalChar>>(maxScrollbackLines)
-    private var scrollOffset = 0  // 0 = at bottom (current), positive = scrolled up into history
+    private var scrollOffset = 0
 
     private var cursorX = 0
     private var cursorY = 0
@@ -53,21 +52,19 @@ class TerminalEmulator(
     private var scrollTop = 0
     private var scrollBottom = rows - 1
 
-    // Escape sequence parsing state
     private val escapeBuffer = StringBuilder()
     private var parseState = ParseState.NORMAL
 
     private enum class ParseState {
         NORMAL,
-        ESCAPE,      // Just saw ESC
-        CSI,         // ESC [
-        CSI_PARAM,   // ESC [ with parameters
-        OSC,         // ESC ]
-        DCS,         // ESC P
-        CHARSET      // ESC ( or ESC ) etc
+        ESCAPE,
+        CSI,
+        CSI_PARAM,
+        OSC,
+        DCS,
+        CHARSET
     }
 
-    // Terminal modes
     private var cursorVisible = true
     private var autoWrapMode = true
     private var originMode = false
@@ -77,12 +74,10 @@ class TerminalEmulator(
     private var applicationKeypad = false
     private var lineFeedNewLineMode = false
 
-    // UTF-8 handling
     private val utf8Buffer = ByteArray(4)
     private var utf8BytesRemaining = 0
     private var utf8ByteIndex = 0
 
-    // Tab stops
     private val tabStops = mutableSetOf<Int>().apply {
         for (i in 0 until 320 step 8) add(i)
     }
@@ -168,34 +163,27 @@ class TerminalEmulator(
                                 processChar(c)
                             }
                         } catch (e: Exception) {
-                            // Invalid UTF-8
                         }
                     }
                 } else {
-                    // Invalid continuation byte, reset
                     utf8BytesRemaining = 0
                     processChar(byte.toChar())
                 }
             } else if (byte and 0x80 == 0) {
-                // ASCII
                 processChar(byte.toChar())
             } else if (byte and 0xE0 == 0xC0) {
-                // 2-byte UTF-8
                 utf8Buffer[0] = byte.toByte()
                 utf8ByteIndex = 1
                 utf8BytesRemaining = 1
             } else if (byte and 0xF0 == 0xE0) {
-                // 3-byte UTF-8
                 utf8Buffer[0] = byte.toByte()
                 utf8ByteIndex = 1
                 utf8BytesRemaining = 2
             } else if (byte and 0xF8 == 0xF0) {
-                // 4-byte UTF-8
                 utf8Buffer[0] = byte.toByte()
                 utf8ByteIndex = 1
                 utf8BytesRemaining = 3
             } else {
-                // Invalid UTF-8 start byte, treat as Latin-1
                 processChar(byte.toChar())
             }
             i++
@@ -218,7 +206,6 @@ class TerminalEmulator(
             ParseState.OSC -> processOscChar(c)
             ParseState.DCS -> processDcsChar(c)
             ParseState.CHARSET -> {
-                // Consume one more character for charset designation
                 parseState = ParseState.NORMAL
             }
         }
@@ -235,14 +222,14 @@ class TerminalEmulator(
                 lineFeed()
                 if (lineFeedNewLineMode) cursorX = 0
             }
-            '\u000B', '\u000C' -> lineFeed()  // VT, FF
+            '\u000B', '\u000C' -> lineFeed()
             '\b' -> if (cursorX > 0) cursorX--
             '\t' -> tabForward()
-            '\u0007' -> { /* bell, ignore */ }
-            '\u000E' -> { /* SO shift out, ignore */ }
-            '\u000F' -> { /* SI shift in, ignore */ }
-            '\u0000' -> { /* NUL, ignore */ }
-            '\u007F' -> { /* DEL, ignore in normal mode */ }
+            '\u0007' -> { }
+            '\u000E' -> { }
+            '\u000F' -> { }
+            '\u0000' -> { }
+            '\u007F' -> { }
             else -> {
                 if (c.code >= 32) {
                     putChar(c)
@@ -277,13 +264,12 @@ class TerminalEmulator(
             'c' -> { fullReset(); parseState = ParseState.NORMAL }
             '=' -> { applicationKeypad = true; parseState = ParseState.NORMAL }
             '>' -> { applicationKeypad = false; parseState = ParseState.NORMAL }
-            'N', 'O' -> parseState = ParseState.NORMAL  // SS2/SS3
-            '\\' -> parseState = ParseState.NORMAL  // ST
-            '#' -> parseState = ParseState.CHARSET  // DEC special
-            ' ' -> parseState = ParseState.CHARSET  // 7/8-bit control
-            '%' -> parseState = ParseState.CHARSET  // UTF-8 designation
+            'N', 'O' -> parseState = ParseState.NORMAL
+            '\\' -> parseState = ParseState.NORMAL
+            '#' -> parseState = ParseState.CHARSET
+            ' ' -> parseState = ParseState.CHARSET
+            '%' -> parseState = ParseState.CHARSET
             else -> {
-                // Unknown escape, ignore
                 parseState = ParseState.NORMAL
             }
         }
@@ -291,22 +277,18 @@ class TerminalEmulator(
 
     private fun processCsiChar(c: Char) {
         when {
-            // Parameter bytes: 0x30-0x3F (0-9:;<=>?)
             c in '0'..'?' -> {
                 escapeBuffer.append(c)
                 parseState = ParseState.CSI_PARAM
             }
-            // Intermediate bytes: 0x20-0x2F (space to /)
             c in ' '..'/' -> {
                 escapeBuffer.append(c)
             }
-            // Final bytes: 0x40-0x7E (@-~)
             c in '@'..'~' -> {
                 executeCsiSequence(escapeBuffer.toString(), c)
                 parseState = ParseState.NORMAL
                 escapeBuffer.clear()
             }
-            // Invalid, abort
             else -> {
                 parseState = ParseState.NORMAL
                 escapeBuffer.clear()
@@ -317,24 +299,20 @@ class TerminalEmulator(
     private fun processOscChar(c: Char) {
         when {
             c == '\u0007' -> {
-                // BEL terminates OSC
                 processOscSequence(escapeBuffer.toString())
                 parseState = ParseState.NORMAL
                 escapeBuffer.clear()
             }
             c == '\u001b' -> {
-                // Possible ST (ESC \)
                 escapeBuffer.append(c)
             }
             escapeBuffer.endsWith("\u001b") && c == '\\' -> {
-                // ST terminates OSC
                 processOscSequence(escapeBuffer.dropLast(1).toString())
                 parseState = ParseState.NORMAL
                 escapeBuffer.clear()
             }
             else -> {
                 escapeBuffer.append(c)
-                // Safety limit
                 if (escapeBuffer.length > 4096) {
                     parseState = ParseState.NORMAL
                     escapeBuffer.clear()
@@ -347,13 +325,11 @@ class TerminalEmulator(
         when {
             c == '\u001b' -> escapeBuffer.append(c)
             escapeBuffer.endsWith("\u001b") && c == '\\' -> {
-                // ST terminates DCS
                 parseState = ParseState.NORMAL
                 escapeBuffer.clear()
             }
             else -> {
                 escapeBuffer.append(c)
-                // Safety limit
                 if (escapeBuffer.length > 4096) {
                     parseState = ParseState.NORMAL
                     escapeBuffer.clear()
@@ -373,7 +349,6 @@ class TerminalEmulator(
         }
 
         if (insertMode) {
-            // Shift characters right
             for (x in columns - 1 downTo cursorX + 1) {
                 screen[cursorY][x] = screen[cursorY][x - 1].copy()
             }
@@ -406,12 +381,9 @@ class TerminalEmulator(
     private fun scrollUp(count: Int = 1) {
         val n = count.coerceAtMost(scrollBottom - scrollTop + 1)
         for (i in 0 until n) {
-            // Save the line being scrolled off to scrollback (only for main screen, full-screen scroll region)
             if (!useAltScreen && scrollTop == 0) {
-                // Copy the line to scrollback buffer
                 val lineToSave = Array(columns) { x -> screen[0][x].copy() }
                 scrollbackBuffer.addLast(lineToSave)
-                // Remove oldest lines if buffer is full
                 while (scrollbackBuffer.size > maxScrollbackLines) {
                     scrollbackBuffer.removeFirst()
                 }
@@ -423,7 +395,6 @@ class TerminalEmulator(
             screen[scrollBottom] = Array(columns) { TerminalChar(foreground = theme.foregroundColor, background = theme.backgroundColor) }
         }
 
-        // Reset scroll position to bottom when new content arrives
         if (scrollOffset > 0) {
             scrollOffset = 0
         }
@@ -482,12 +453,9 @@ class TerminalEmulator(
     }
 
     private fun processOscSequence(seq: String) {
-        // OSC sequences are typically: Ps ; Pt
-        // We ignore them (window title, colors, etc.)
     }
 
     private fun executeCsiSequence(paramStr: String, command: Char) {
-        // Parse prefix characters
         var params = paramStr
         val prefix = StringBuilder()
 
@@ -496,7 +464,6 @@ class TerminalEmulator(
             params = params.drop(1)
         }
 
-        // Parse intermediate characters (at the end before command)
         val intermediate = StringBuilder()
         while (params.isNotEmpty() && params.last() in ' '..'/') {
             intermediate.insert(0, params.last())
@@ -506,7 +473,6 @@ class TerminalEmulator(
         val isPrivate = '?' in prefix.toString()
         val isDec = '>' in prefix.toString()
 
-        // Parse parameters
         val paramList = if (params.isEmpty()) {
             emptyList()
         } else {
@@ -514,121 +480,121 @@ class TerminalEmulator(
         }
 
         when (command) {
-            'A' -> { // CUU - Cursor Up
+            'A' -> {
                 val n = (paramList.getOrElse(0) { 1 }).coerceAtLeast(1)
                 cursorY = maxOf(scrollTop, cursorY - n)
             }
-            'B', 'e' -> { // CUD - Cursor Down
+            'B', 'e' -> {
                 val n = (paramList.getOrElse(0) { 1 }).coerceAtLeast(1)
                 cursorY = minOf(scrollBottom, cursorY + n)
             }
-            'C', 'a' -> { // CUF - Cursor Forward
+            'C', 'a' -> {
                 val n = (paramList.getOrElse(0) { 1 }).coerceAtLeast(1)
                 cursorX = minOf(columns - 1, cursorX + n)
             }
-            'D' -> { // CUB - Cursor Back
+            'D' -> {
                 val n = (paramList.getOrElse(0) { 1 }).coerceAtLeast(1)
                 cursorX = maxOf(0, cursorX - n)
             }
-            'E' -> { // CNL - Cursor Next Line
+            'E' -> {
                 val n = (paramList.getOrElse(0) { 1 }).coerceAtLeast(1)
                 cursorX = 0
                 cursorY = minOf(scrollBottom, cursorY + n)
             }
-            'F' -> { // CPL - Cursor Previous Line
+            'F' -> {
                 val n = (paramList.getOrElse(0) { 1 }).coerceAtLeast(1)
                 cursorX = 0
                 cursorY = maxOf(scrollTop, cursorY - n)
             }
-            'G', '`' -> { // CHA - Cursor Character Absolute
+            'G', '`' -> {
                 val col = paramList.getOrElse(0) { 1 }
                 cursorX = (col - 1).coerceIn(0, columns - 1)
             }
-            'H', 'f' -> { // CUP - Cursor Position
+            'H', 'f' -> {
                 val row = paramList.getOrElse(0) { 1 }
                 val col = paramList.getOrElse(1) { 1 }
                 cursorY = (row - 1).coerceIn(0, rows - 1)
                 cursorX = (col - 1).coerceIn(0, columns - 1)
             }
-            'I' -> { // CHT - Cursor Forward Tabulation
+            'I' -> {
                 repeat((paramList.getOrElse(0) { 1 }).coerceAtLeast(1)) { tabForward() }
             }
-            'J' -> { // ED - Erase in Display
+            'J' -> {
                 when (paramList.getOrElse(0) { 0 }) {
                     0 -> clearFromCursor()
                     1 -> clearToCursor()
                     2, 3 -> clearScreen()
                 }
             }
-            'K' -> { // EL - Erase in Line
+            'K' -> {
                 when (paramList.getOrElse(0) { 0 }) {
                     0 -> clearLineFromCursor()
                     1 -> clearLineToCursor()
                     2 -> clearLine()
                 }
             }
-            'L' -> { // IL - Insert Lines
+            'L' -> {
                 insertLines((paramList.getOrElse(0) { 1 }).coerceAtLeast(1))
             }
-            'M' -> { // DL - Delete Lines
+            'M' -> {
                 deleteLines((paramList.getOrElse(0) { 1 }).coerceAtLeast(1))
             }
-            'P' -> { // DCH - Delete Characters
+            'P' -> {
                 deleteChars((paramList.getOrElse(0) { 1 }).coerceAtLeast(1))
             }
-            'S' -> { // SU - Scroll Up
+            'S' -> {
                 scrollUp((paramList.getOrElse(0) { 1 }).coerceAtLeast(1))
             }
-            'T' -> { // SD - Scroll Down
+            'T' -> {
                 scrollDown((paramList.getOrElse(0) { 1 }).coerceAtLeast(1))
             }
-            'X' -> { // ECH - Erase Characters
+            'X' -> {
                 eraseChars((paramList.getOrElse(0) { 1 }).coerceAtLeast(1))
             }
-            'Z' -> { // CBT - Cursor Backward Tabulation
+            'Z' -> {
                 repeat((paramList.getOrElse(0) { 1 }).coerceAtLeast(1)) { tabBackward() }
             }
-            '@' -> { // ICH - Insert Characters
+            '@' -> {
                 insertChars((paramList.getOrElse(0) { 1 }).coerceAtLeast(1))
             }
-            'b' -> { // REP - Repeat
+            'b' -> {
                 val count = (paramList.getOrElse(0) { 1 }).coerceAtLeast(1)
                 val lastChar = if (cursorX > 0 && cursorY < rows) screen[cursorY][cursorX - 1].char else ' '
                 repeat(count) { putChar(lastChar) }
             }
-            'c' -> { /* DA - Device Attributes - ignore */ }
-            'd' -> { // VPA - Vertical Position Absolute
+            'c' -> { }
+            'd' -> {
                 val row = paramList.getOrElse(0) { 1 }
                 cursorY = (row - 1).coerceIn(0, rows - 1)
             }
-            'g' -> { // TBC - Tab Clear
+            'g' -> {
                 clearTabStop(paramList.getOrElse(0) { 0 })
             }
-            'h' -> { // SM - Set Mode
+            'h' -> {
                 if (isPrivate) {
                     setPrivateMode(paramList, true)
                 } else {
                     setMode(paramList, true)
                 }
             }
-            'l' -> { // RM - Reset Mode
+            'l' -> {
                 if (isPrivate) {
                     setPrivateMode(paramList, false)
                 } else {
                     setMode(paramList, false)
                 }
             }
-            'm' -> { // SGR - Select Graphic Rendition
+            'm' -> {
                 processSgr(paramList)
             }
-            'n' -> { /* DSR - Device Status Report - ignore */ }
+            'n' -> { }
             'p' -> {
                 if (intermediate.toString() == "!") {
                     softReset()
                 }
             }
-            'q' -> { /* DECSCUSR - Set Cursor Style - ignore */ }
-            'r' -> { // DECSTBM - Set Scrolling Region
+            'q' -> { }
+            'r' -> {
                 val top = paramList.getOrElse(0) { 1 }
                 val bottom = paramList.getOrElse(1) { rows }
                 scrollTop = (top - 1).coerceIn(0, rows - 1)
@@ -636,13 +602,13 @@ class TerminalEmulator(
                 cursorX = 0
                 cursorY = if (originMode) scrollTop else 0
             }
-            's' -> { // SCOSC - Save Cursor Position
+            's' -> {
                 if (!isPrivate) {
                     saveCursor()
                 }
             }
-            't' -> { /* Window manipulation - ignore */ }
-            'u' -> { // SCORC - Restore Cursor Position
+            't' -> { }
+            'u' -> {
                 restoreCursor()
             }
         }
@@ -661,21 +627,21 @@ class TerminalEmulator(
         for (param in params) {
             when (param) {
                 1 -> applicationCursorKeys = enable
-                3 -> { /* DECCOLM - ignore */ }
-                4 -> { /* DECSCLM - ignore */ }
-                5 -> { /* DECSCNM - ignore */ }
+                3 -> { }
+                4 -> { }
+                5 -> { }
                 6 -> {
                     originMode = enable
                     cursorX = 0
                     cursorY = if (originMode) scrollTop else 0
                 }
                 7 -> autoWrapMode = enable
-                12 -> { /* Cursor blink - ignore */ }
+                12 -> { }
                 25 -> cursorVisible = enable
                 47 -> switchScreen(enable)
-                1000, 1002, 1003, 1006, 1015 -> { /* Mouse tracking - ignore */ }
-                1004 -> { /* Focus reporting - ignore */ }
-                1034 -> { /* Meta key - ignore */ }
+                1000, 1002, 1003, 1006, 1015 -> { }
+                1004 -> { }
+                1034 -> { }
                 1047 -> switchScreen(enable)
                 1048 -> if (enable) saveCursor() else restoreCursor()
                 1049 -> {
@@ -973,7 +939,6 @@ class TerminalEmulator(
     fun isCursorVisible(): Boolean = cursorVisible
     fun isApplicationCursorKeys(): Boolean = applicationCursorKeys
 
-    // Scrollback navigation
     fun getScrollOffset(): Int = scrollOffset
     fun getScrollbackSize(): Int = scrollbackBuffer.size
     fun getMaxScrollback(): Int = maxScrollbackLines
@@ -1016,25 +981,17 @@ class TerminalEmulator(
 
     fun isAtBottom(): Boolean = scrollOffset == 0
 
-    /**
-     * Returns the visible screen including scrollback.
-     * When scrollOffset > 0, shows lines from scrollback history.
-     */
     fun getVisibleScreen(): Array<Array<TerminalChar>> {
         if (scrollOffset == 0 || useAltScreen) {
             return screen
         }
 
-        // Create a combined view of scrollback + screen
         val result = Array(rows) { y ->
             val scrollbackIndex = scrollbackBuffer.size - scrollOffset + y
             if (scrollbackIndex < 0) {
-                // Beyond scrollback, show empty line
                 Array(columns) { TerminalChar(foreground = theme.foregroundColor, background = theme.backgroundColor) }
             } else if (scrollbackIndex < scrollbackBuffer.size) {
-                // Show from scrollback
                 val scrollbackLine = scrollbackBuffer.elementAt(scrollbackIndex)
-                // Handle width changes - pad or truncate as needed
                 if (scrollbackLine.size == columns) {
                     scrollbackLine
                 } else {
@@ -1044,7 +1001,6 @@ class TerminalEmulator(
                     }
                 }
             } else {
-                // Show from current screen
                 val screenY = scrollbackIndex - scrollbackBuffer.size
                 if (screenY < rows) screen[screenY] else Array(columns) { TerminalChar(foreground = theme.foregroundColor, background = theme.backgroundColor) }
             }
@@ -1064,7 +1020,6 @@ class TerminalEmulator(
             for (x in 0 until columns) {
                 sb.append(screen[y][x].char)
             }
-            // Trim trailing spaces and add newline
             while (sb.isNotEmpty() && sb.last() == ' ') {
                 sb.deleteCharAt(sb.length - 1)
             }
@@ -1082,7 +1037,6 @@ class TerminalEmulator(
         var eX = endX
         var eY = endY
 
-        // Normalize selection direction
         if (sY > eY || (sY == eY && sX > eX)) {
             val tmpX = sX
             val tmpY = sY
@@ -1098,7 +1052,6 @@ class TerminalEmulator(
             for (x in lineStart..lineEnd.coerceAtMost(columns - 1)) {
                 sb.append(screen[y][x].char)
             }
-            // Trim trailing spaces from each line
             while (sb.isNotEmpty() && sb.last() == ' ') {
                 sb.deleteCharAt(sb.length - 1)
             }

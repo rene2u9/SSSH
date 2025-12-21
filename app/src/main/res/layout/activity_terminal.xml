@@ -46,7 +46,6 @@
 
     </FrameLayout>
 
-    <!-- Extra keys bar for special keys - positioned above keyboard -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/extraKeysCard"
         android:layout_width="match_parent"

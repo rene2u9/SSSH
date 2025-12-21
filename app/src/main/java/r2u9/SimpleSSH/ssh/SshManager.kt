@@ -52,7 +52,6 @@ object SshManager {
     private val activeSessions = mutableMapOf<String, SshSession>()
 
     init {
-        // Register Bouncy Castle as the security provider for X25519 and other modern algorithms
         Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME)
         Security.insertProviderAt(BouncyCastleProvider(), 1)
     }

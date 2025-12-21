@@ -15,7 +15,7 @@ data class SshConnection(
     val password: String? = null,
     val privateKey: String? = null,
     val privateKeyPassphrase: String? = null,
-    val colorTheme: String = "default",
+    val colorTheme: String = "Default",
     val createdAt: Long = System.currentTimeMillis(),
     val lastConnectedAt: Long? = null,
     val wolEnabled: Boolean = false,

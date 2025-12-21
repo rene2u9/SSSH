@@ -3,19 +3,16 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 
-    <!-- Primary colors - Teal accent -->
     <color name="primary">#00BFA5</color>
     <color name="on_primary">#003731</color>
     <color name="primary_container">#004D43</color>
     <color name="on_primary_container">#6FFADF</color>
 
-    <!-- Secondary colors -->
     <color name="secondary">#B0CCCB</color>
     <color name="on_secondary">#1B3534</color>
     <color name="secondary_container">#324B4A</color>
     <color name="on_secondary_container">#CCE8E6</color>
 
-    <!-- Surface colors -->
     <color name="surface">#0F1514</color>
     <color name="on_surface">#DEE4E2</color>
     <color name="surface_container">#161D1C</color>
@@ -24,10 +21,8 @@
     <color name="surface_variant">#3F4948</color>
     <color name="on_surface_variant">#BEC9C7</color>
 
-    <!-- Error colors -->
     <color name="error">#FFB4AB</color>
     <color name="on_error">#690005</color>
 
-    <!-- Outline -->
     <color name="outline">#899392</color>
 </resources>

@@ -17,7 +17,6 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
@@ -37,7 +36,7 @@ import r2u9.SimpleSSH.terminal.TerminalEmulator
 import r2u9.SimpleSSH.util.AppPreferences
 import r2u9.SimpleSSH.util.BiometricHelper
 
-class TerminalActivity : AppCompatActivity() {
+class TerminalActivity : BaseActivity() {
 
     private lateinit var binding: ActivityTerminalBinding
     private var emulator: TerminalEmulator? = null
@@ -54,8 +53,6 @@ class TerminalActivity : AppCompatActivity() {
     private var ctrlPressed = false
     private var altPressed = false
 
-    private lateinit var prefs: AppPreferences
-
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             val binder = service as SshConnectionService.LocalBinder
@@ -64,7 +61,6 @@ class TerminalActivity : AppCompatActivity() {
             sessionId?.let { id ->
                 sshSession = sshService?.getSession(id)
                 if (sshSession != null) {
-                    // Get or create emulator from service (persists across activity recreation)
                     emulator = sshService?.getOrCreateEmulator(id)
                     setupTerminalWithEmulator()
                     startReading()
@@ -88,22 +84,17 @@ class TerminalActivity : AppCompatActivity() {
         binding = ActivityTerminalBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        prefs = AppPreferences.getInstance(this)
-
         sessionId = intent.getStringExtra(EXTRA_SESSION_ID)
         connectionName = intent.getStringExtra(EXTRA_CONNECTION_NAME)
-        // Use connection theme if provided, otherwise use default from settings
         themeName = intent.getStringExtra(EXTRA_THEME)?.takeIf { it.isNotEmpty() } ?: prefs.defaultTheme
 
         setupInsets()
         setupExtraKeys()
 
-        // Hide toolbar - all settings are in Settings activity now
         binding.appBarLayout.visibility = View.GONE
 
         binding.progressBar.visibility = View.VISIBLE
 
-        // Start and bind to the service to ensure it stays alive
         Intent(this, SshConnectionService::class.java).also { intent ->
             startService(intent)
             bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
@@ -114,17 +105,13 @@ class TerminalActivity : AppCompatActivity() {
         super.onNewIntent(intent)
         val newSessionId = intent.getStringExtra(EXTRA_SESSION_ID)
 
-        // If it's a different session, switch to it
         if (newSessionId != null && newSessionId != sessionId) {
-            // Stop reading from old session
             readJob?.cancel()
 
-            // Update session info
             sessionId = newSessionId
             connectionName = intent.getStringExtra(EXTRA_CONNECTION_NAME)
             themeName = intent.getStringExtra(EXTRA_THEME)?.takeIf { it.isNotEmpty() } ?: prefs.defaultTheme
 
-            // Reconnect to the new session
             if (serviceBound) {
                 sshSession = sshService?.getSession(newSessionId)
                 if (sshSession != null) {
@@ -151,10 +138,7 @@ class TerminalActivity : AppCompatActivity() {
     }
 
     private fun applySettings() {
-        // Apply font size
         binding.terminalView.setTextSize(prefs.defaultFontSize.toFloat())
-
-        // Apply extra keys visibility
         binding.extraKeysCard.visibility = if (prefs.showExtraKeys) View.VISIBLE else View.GONE
     }
 
@@ -227,11 +211,9 @@ class TerminalActivity : AppCompatActivity() {
             binding.appBarLayout.setPadding(systemBars.left, systemBars.top, systemBars.right, 0)
             binding.terminalContainer.setPadding(systemBars.left, systemBars.top, systemBars.right, 0)
 
-            // Position extra keys above the keyboard
             val bottomPadding = if (ime.bottom > 0) ime.bottom else systemBars.bottom
             binding.extraKeysCard.translationY = -bottomPadding.toFloat()
 
-            // Adjust terminal container bottom padding to account for extra keys
             val extraKeysHeight = binding.extraKeysCard.height
             binding.terminalContainer.setPadding(
                 systemBars.left,
@@ -251,15 +233,12 @@ class TerminalActivity : AppCompatActivity() {
         emu.setTheme(theme)
         updateTerminalColors(theme)
 
-        // Hook up PTY resize when terminal size changes
-        // Note: resizePty is called from IO thread to avoid blocking UI
         emu.onSizeChanged = { cols, rows ->
             sshSession?.let { session ->
                 lifecycleScope.launch(Dispatchers.IO) {
                     try {
                         session.resizePty(cols, rows)
                     } catch (e: Exception) {
-                        // Ignore resize errors - connection might be closing
                     }
                 }
             }
@@ -297,12 +276,10 @@ class TerminalActivity : AppCompatActivity() {
         val menuSelectText = dialog.findViewById<View>(R.id.menuSelectText)
         val menuSettings = dialog.findViewById<View>(R.id.menuSettings)
 
-        // Show copy option if there's a selection
         if (binding.terminalView.hasSelection()) {
             menuCopy.visibility = View.VISIBLE
         }
 
-        // Show paste password option if connection uses password auth
         val activeSession = sessionId?.let { sshService?.getActiveSession(it) }
         if (activeSession?.connection?.authType == AuthType.PASSWORD &&
             !activeSession.connection.password.isNullOrEmpty()) {
