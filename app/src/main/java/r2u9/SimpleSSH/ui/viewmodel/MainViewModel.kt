@@ -64,6 +64,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return repository.getAllConnectionsList()
     }
 
+    suspend fun getConnectionById(id: Long): SshConnection? {
+        return repository.getConnectionById(id)
+    }
+
     fun importConnections(connections: List<SshConnection>) {
         viewModelScope.launch {
             connections.forEach { connection ->

@@ -47,14 +47,24 @@ class AppPreferences(context: Context) {
     enum class AccentColor(val displayName: String, val colorValue: Int) {
         TEAL("Teal", 0xFF00BFA5.toInt()),
         BLUE("Blue", 0xFF2196F3.toInt()),
-        PURPLE("Purple", 0xFF9C27B0.toInt()),
-        PINK("Pink", 0xFFE91E63.toInt()),
-        RED("Red", 0xFFF44336.toInt()),
-        ORANGE("Orange", 0xFFFF9800.toInt()),
-        YELLOW("Yellow", 0xFFFFEB3B.toInt()),
-        GREEN("Green", 0xFF4CAF50.toInt()),
+        LIGHT_BLUE("Light Blue", 0xFF03A9F4.toInt()),
         CYAN("Cyan", 0xFF00BCD4.toInt()),
-        INDIGO("Indigo", 0xFF3F51B5.toInt());
+        GREEN("Green", 0xFF4CAF50.toInt()),
+        LIGHT_GREEN("Light Green", 0xFF8BC34A.toInt()),
+        LIME("Lime", 0xFFCDDC39.toInt()),
+        YELLOW("Yellow", 0xFFFFEB3B.toInt()),
+        AMBER("Amber", 0xFFFFC107.toInt()),
+        ORANGE("Orange", 0xFFFF9800.toInt()),
+        DEEP_ORANGE("Deep Orange", 0xFFFF5722.toInt()),
+        RED("Red", 0xFFF44336.toInt()),
+        PINK("Pink", 0xFFE91E63.toInt()),
+        PURPLE("Purple", 0xFF9C27B0.toInt()),
+        DEEP_PURPLE("Deep Purple", 0xFF673AB7.toInt()),
+        INDIGO("Indigo", 0xFF3F51B5.toInt()),
+        BROWN("Brown", 0xFF795548.toInt()),
+        GREY("Grey", 0xFF9E9E9E.toInt()),
+        BLUE_GREY("Blue Grey", 0xFF607D8B.toInt()),
+        WHITE("White", 0xFFFFFFFF.toInt());
 
         companion object {
             fun fromName(name: String): AccentColor {
@@ -85,7 +95,7 @@ class AppPreferences(context: Context) {
     }
 
     companion object {
-        private const val PREFS_NAME = "vibessh_preferences"
+        private const val PREFS_NAME = "simplessh_preferences"
         private const val KEY_DEFAULT_THEME = "default_theme"
         private const val KEY_DEFAULT_FONT_SIZE = "default_font_size"
         private const val KEY_VOLUME_UP_ACTION = "volume_up_action"

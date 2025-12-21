@@ -13,40 +13,10 @@
         <item name="colorOnPrimaryContainer">#90CAF9</item>
     </style>
 
-    <style name="AccentPurple" parent="">
-        <item name="colorPrimary">#9C27B0</item>
-        <item name="colorPrimaryContainer">#4A148C</item>
-        <item name="colorOnPrimaryContainer">#E1BEE7</item>
-    </style>
-
-    <style name="AccentPink" parent="">
-        <item name="colorPrimary">#E91E63</item>
-        <item name="colorPrimaryContainer">#880E4F</item>
-        <item name="colorOnPrimaryContainer">#F8BBD9</item>
-    </style>
-
-    <style name="AccentRed" parent="">
-        <item name="colorPrimary">#F44336</item>
-        <item name="colorPrimaryContainer">#B71C1C</item>
-        <item name="colorOnPrimaryContainer">#FFCDD2</item>
-    </style>
-
-    <style name="AccentOrange" parent="">
-        <item name="colorPrimary">#FF9800</item>
-        <item name="colorPrimaryContainer">#E65100</item>
-        <item name="colorOnPrimaryContainer">#FFE0B2</item>
-    </style>
-
-    <style name="AccentYellow" parent="">
-        <item name="colorPrimary">#FFEB3B</item>
-        <item name="colorPrimaryContainer">#F57F17</item>
-        <item name="colorOnPrimaryContainer">#FFF9C4</item>
-    </style>
-
-    <style name="AccentGreen" parent="">
-        <item name="colorPrimary">#4CAF50</item>
-        <item name="colorPrimaryContainer">#1B5E20</item>
-        <item name="colorOnPrimaryContainer">#C8E6C9</item>
+    <style name="AccentLightBlue" parent="">
+        <item name="colorPrimary">#03A9F4</item>
+        <item name="colorPrimaryContainer">#01579B</item>
+        <item name="colorOnPrimaryContainer">#81D4FA</item>
     </style>
 
     <style name="AccentCyan" parent="">
@@ -55,9 +25,99 @@
         <item name="colorOnPrimaryContainer">#B2EBF2</item>
     </style>
 
+    <style name="AccentGreen" parent="">
+        <item name="colorPrimary">#4CAF50</item>
+        <item name="colorPrimaryContainer">#1B5E20</item>
+        <item name="colorOnPrimaryContainer">#C8E6C9</item>
+    </style>
+
+    <style name="AccentLightGreen" parent="">
+        <item name="colorPrimary">#8BC34A</item>
+        <item name="colorPrimaryContainer">#33691E</item>
+        <item name="colorOnPrimaryContainer">#DCEDC8</item>
+    </style>
+
+    <style name="AccentLime" parent="">
+        <item name="colorPrimary">#CDDC39</item>
+        <item name="colorPrimaryContainer">#827717</item>
+        <item name="colorOnPrimaryContainer">#F0F4C3</item>
+    </style>
+
+    <style name="AccentYellow" parent="">
+        <item name="colorPrimary">#FFEB3B</item>
+        <item name="colorPrimaryContainer">#F57F17</item>
+        <item name="colorOnPrimaryContainer">#FFF9C4</item>
+    </style>
+
+    <style name="AccentAmber" parent="">
+        <item name="colorPrimary">#FFC107</item>
+        <item name="colorPrimaryContainer">#FF6F00</item>
+        <item name="colorOnPrimaryContainer">#FFECB3</item>
+    </style>
+
+    <style name="AccentOrange" parent="">
+        <item name="colorPrimary">#FF9800</item>
+        <item name="colorPrimaryContainer">#E65100</item>
+        <item name="colorOnPrimaryContainer">#FFE0B2</item>
+    </style>
+
+    <style name="AccentDeepOrange" parent="">
+        <item name="colorPrimary">#FF5722</item>
+        <item name="colorPrimaryContainer">#BF360C</item>
+        <item name="colorOnPrimaryContainer">#FFCCBC</item>
+    </style>
+
+    <style name="AccentRed" parent="">
+        <item name="colorPrimary">#F44336</item>
+        <item name="colorPrimaryContainer">#B71C1C</item>
+        <item name="colorOnPrimaryContainer">#FFCDD2</item>
+    </style>
+
+    <style name="AccentPink" parent="">
+        <item name="colorPrimary">#E91E63</item>
+        <item name="colorPrimaryContainer">#880E4F</item>
+        <item name="colorOnPrimaryContainer">#F8BBD9</item>
+    </style>
+
+    <style name="AccentPurple" parent="">
+        <item name="colorPrimary">#9C27B0</item>
+        <item name="colorPrimaryContainer">#4A148C</item>
+        <item name="colorOnPrimaryContainer">#E1BEE7</item>
+    </style>
+
+    <style name="AccentDeepPurple" parent="">
+        <item name="colorPrimary">#673AB7</item>
+        <item name="colorPrimaryContainer">#311B92</item>
+        <item name="colorOnPrimaryContainer">#D1C4E9</item>
+    </style>
+
     <style name="AccentIndigo" parent="">
         <item name="colorPrimary">#3F51B5</item>
         <item name="colorPrimaryContainer">#1A237E</item>
         <item name="colorOnPrimaryContainer">#C5CAE9</item>
+    </style>
+
+    <style name="AccentBrown" parent="">
+        <item name="colorPrimary">#795548</item>
+        <item name="colorPrimaryContainer">#3E2723</item>
+        <item name="colorOnPrimaryContainer">#D7CCC8</item>
+    </style>
+
+    <style name="AccentGrey" parent="">
+        <item name="colorPrimary">#9E9E9E</item>
+        <item name="colorPrimaryContainer">#424242</item>
+        <item name="colorOnPrimaryContainer">#E0E0E0</item>
+    </style>
+
+    <style name="AccentBlueGrey" parent="">
+        <item name="colorPrimary">#607D8B</item>
+        <item name="colorPrimaryContainer">#263238</item>
+        <item name="colorOnPrimaryContainer">#CFD8DC</item>
+    </style>
+
+    <style name="AccentWhite" parent="">
+        <item name="colorPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">#9E9E9E</item>
+        <item name="colorOnPrimaryContainer">#FFFFFF</item>
     </style>
 </resources>

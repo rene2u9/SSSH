@@ -152,8 +152,6 @@ class SettingsActivity : BaseActivity() {
                     onError = { error ->
                         binding.biometricSwitch.isChecked = false
                         Toast.makeText(this, "Failed: $error", Toast.LENGTH_SHORT).show()
-                    },
-                    onFailed = {
                     }
                 )
             } else {

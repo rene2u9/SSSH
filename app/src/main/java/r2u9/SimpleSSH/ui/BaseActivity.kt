@@ -24,14 +24,24 @@ abstract class BaseActivity : AppCompatActivity() {
         return when (AppPreferences.AccentColor.fromColor(color)) {
             AppPreferences.AccentColor.TEAL -> r2u9.SimpleSSH.R.style.AccentTeal
             AppPreferences.AccentColor.BLUE -> r2u9.SimpleSSH.R.style.AccentBlue
-            AppPreferences.AccentColor.PURPLE -> r2u9.SimpleSSH.R.style.AccentPurple
-            AppPreferences.AccentColor.PINK -> r2u9.SimpleSSH.R.style.AccentPink
-            AppPreferences.AccentColor.RED -> r2u9.SimpleSSH.R.style.AccentRed
-            AppPreferences.AccentColor.ORANGE -> r2u9.SimpleSSH.R.style.AccentOrange
-            AppPreferences.AccentColor.YELLOW -> r2u9.SimpleSSH.R.style.AccentYellow
-            AppPreferences.AccentColor.GREEN -> r2u9.SimpleSSH.R.style.AccentGreen
+            AppPreferences.AccentColor.LIGHT_BLUE -> r2u9.SimpleSSH.R.style.AccentLightBlue
             AppPreferences.AccentColor.CYAN -> r2u9.SimpleSSH.R.style.AccentCyan
+            AppPreferences.AccentColor.GREEN -> r2u9.SimpleSSH.R.style.AccentGreen
+            AppPreferences.AccentColor.LIGHT_GREEN -> r2u9.SimpleSSH.R.style.AccentLightGreen
+            AppPreferences.AccentColor.LIME -> r2u9.SimpleSSH.R.style.AccentLime
+            AppPreferences.AccentColor.YELLOW -> r2u9.SimpleSSH.R.style.AccentYellow
+            AppPreferences.AccentColor.AMBER -> r2u9.SimpleSSH.R.style.AccentAmber
+            AppPreferences.AccentColor.ORANGE -> r2u9.SimpleSSH.R.style.AccentOrange
+            AppPreferences.AccentColor.DEEP_ORANGE -> r2u9.SimpleSSH.R.style.AccentDeepOrange
+            AppPreferences.AccentColor.RED -> r2u9.SimpleSSH.R.style.AccentRed
+            AppPreferences.AccentColor.PINK -> r2u9.SimpleSSH.R.style.AccentPink
+            AppPreferences.AccentColor.PURPLE -> r2u9.SimpleSSH.R.style.AccentPurple
+            AppPreferences.AccentColor.DEEP_PURPLE -> r2u9.SimpleSSH.R.style.AccentDeepPurple
             AppPreferences.AccentColor.INDIGO -> r2u9.SimpleSSH.R.style.AccentIndigo
+            AppPreferences.AccentColor.BROWN -> r2u9.SimpleSSH.R.style.AccentBrown
+            AppPreferences.AccentColor.GREY -> r2u9.SimpleSSH.R.style.AccentGrey
+            AppPreferences.AccentColor.BLUE_GREY -> r2u9.SimpleSSH.R.style.AccentBlueGrey
+            AppPreferences.AccentColor.WHITE -> r2u9.SimpleSSH.R.style.AccentWhite
         }
     }
 }

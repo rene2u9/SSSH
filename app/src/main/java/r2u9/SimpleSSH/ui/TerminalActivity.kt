@@ -238,7 +238,7 @@ class TerminalActivity : BaseActivity() {
                 lifecycleScope.launch(Dispatchers.IO) {
                     try {
                         session.resizePty(cols, rows)
-                    } catch (e: Exception) {
+                    } catch (_: Exception) {
                     }
                 }
             }
@@ -274,6 +274,7 @@ class TerminalActivity : BaseActivity() {
         val menuPaste = dialog.findViewById<View>(R.id.menuPaste)
         val menuPastePassword = dialog.findViewById<View>(R.id.menuPastePassword)
         val menuSelectText = dialog.findViewById<View>(R.id.menuSelectText)
+        val menuChangeTheme = dialog.findViewById<View>(R.id.menuChangeTheme)
         val menuSettings = dialog.findViewById<View>(R.id.menuSettings)
 
         if (binding.terminalView.hasSelection()) {
@@ -307,12 +308,35 @@ class TerminalActivity : BaseActivity() {
             Toast.makeText(this, "Drag to select text, tap to cancel", Toast.LENGTH_SHORT).show()
         }
 
+        menuChangeTheme.setOnClickListener {
+            dialog.dismiss()
+            showThemeDialog()
+        }
+
         menuSettings.setOnClickListener {
             dialog.dismiss()
             startActivity(Intent(this, SettingsActivity::class.java))
         }
 
         dialog.show()
+    }
+
+    private fun showThemeDialog() {
+        val themes = TerminalTheme.ALL_THEMES.map { it.name }.toTypedArray()
+        val currentIndex = themes.indexOfFirst { it.equals(themeName, ignoreCase = true) }
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Terminal Theme")
+            .setSingleChoiceItems(themes, currentIndex) { dialog, which ->
+                themeName = themes[which]
+                val theme = TerminalTheme.getByName(themeName)
+                emulator?.setTheme(theme)
+                updateTerminalColors(theme)
+                binding.terminalView.invalidate()
+                dialog.dismiss()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun copySelectedText() {

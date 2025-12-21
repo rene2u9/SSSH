@@ -14,6 +14,9 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import r2u9.SimpleSSH.MainActivity
 import r2u9.SimpleSSH.R
 import r2u9.SimpleSSH.data.model.ActiveSession
@@ -34,7 +37,12 @@ class SshConnectionService : Service() {
     private var nextNotificationId = NOTIFICATION_ID_BASE + 1
     private var updateJob: Job? = null
 
-    var onSessionsChanged: (() -> Unit)? = null
+    private val _sessionsFlow = MutableStateFlow<List<ActiveSession>>(emptyList())
+    val sessionsFlow: StateFlow<List<ActiveSession>> = _sessionsFlow.asStateFlow()
+
+    private fun notifySessionsChanged() {
+        _sessionsFlow.value = activeSessions.values.toList()
+    }
 
     inner class LocalBinder : Binder() {
         fun getService(): SshConnectionService = this@SshConnectionService
@@ -128,7 +136,7 @@ class SshConnectionService : Service() {
                 updateServiceNotification()
                 showSessionNotification(activeSession)
                 startNotificationUpdates()
-                onSessionsChanged?.invoke()
+                notifySessionsChanged()
                 Result.success(session.id)
             },
             onFailure = { error ->
@@ -177,7 +185,7 @@ class SshConnectionService : Service() {
         cancelSessionNotification(sessionId)
         sessionNotificationIds.remove(sessionId)
         updateServiceNotification()
-        onSessionsChanged?.invoke()
+        notifySessionsChanged()
         if (activeSessions.isEmpty()) {
             stopNotificationUpdates()
             stopForeground(STOP_FOREGROUND_REMOVE)
@@ -194,7 +202,7 @@ class SshConnectionService : Service() {
         stopNotificationUpdates()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
-        onSessionsChanged?.invoke()
+        notifySessionsChanged()
     }
 
     fun getSession(sessionId: String): SshSession? = SshManager.getSession(sessionId)

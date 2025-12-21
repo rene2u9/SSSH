@@ -61,16 +61,16 @@ object ConfigExporter {
     }
 
     fun readFromUri(context: Context, uri: Uri): String {
-        val inputStream = context.contentResolver.openInputStream(uri)
-        val reader = BufferedReader(InputStreamReader(inputStream))
-        val content = reader.readText()
-        reader.close()
-        return content
+        return context.contentResolver.openInputStream(uri)?.use { inputStream ->
+            BufferedReader(InputStreamReader(inputStream)).use { reader ->
+                reader.readText()
+            }
+        } ?: throw IllegalStateException("Could not open input stream")
     }
 
     fun writeToUri(context: Context, uri: Uri, content: String) {
-        val outputStream = context.contentResolver.openOutputStream(uri)
-        outputStream?.write(content.toByteArray())
-        outputStream?.close()
+        context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+            outputStream.write(content.toByteArray())
+        } ?: throw IllegalStateException("Could not open output stream")
     }
 }

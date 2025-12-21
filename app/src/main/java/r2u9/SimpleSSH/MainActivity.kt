@@ -9,9 +9,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
 import android.os.IBinder
-import android.os.Looper
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
@@ -19,8 +17,8 @@ import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.core.content.ContextCompat
 import androidx.appcompat.app.AlertDialog
+import androidx.core.content.ContextCompat
 import r2u9.SimpleSSH.ui.BaseActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -47,6 +45,7 @@ import r2u9.SimpleSSH.ui.adapter.HostStatus
 import r2u9.SimpleSSH.ui.viewmodel.MainViewModel
 import r2u9.SimpleSSH.util.BiometricHelper
 import r2u9.SimpleSSH.util.ConfigExporter
+import r2u9.SimpleSSH.util.ShortcutHelper
 import r2u9.SimpleSSH.util.WakeOnLan
 import java.net.InetSocketAddress
 import java.net.Socket
@@ -61,31 +60,37 @@ class MainActivity : BaseActivity() {
 
     private var sshService: SshConnectionService? = null
     private var serviceBound = false
-
-    private val handler = Handler(Looper.getMainLooper())
-    private val updateRunnable = object : Runnable {
-        override fun run() {
-            updateActiveSessions()
-            handler.postDelayed(this, 1000)
-        }
-    }
+    private var sessionsJob: kotlinx.coroutines.Job? = null
 
     private var pendingKeyContent: String? = null
+    private var pendingConnectionId: Long? = null
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             val binder = service as SshConnectionService.LocalBinder
             sshService = binder.getService()
             serviceBound = true
-            sshService?.onSessionsChanged = {
-                runOnUiThread { updateActiveSessions() }
-            }
-            updateActiveSessions()
+            observeSessionsFlow()
+            pendingConnectionId?.let { handleShortcutConnection(it) }
+            pendingConnectionId = null
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
             sshService = null
             serviceBound = false
+            sessionsJob?.cancel()
+        }
+    }
+
+    private fun observeSessionsFlow() {
+        sessionsJob?.cancel()
+        sessionsJob = lifecycleScope.launch {
+            sshService?.sessionsFlow?.collect { sessions ->
+                viewModel.updateActiveSessions(sessions)
+                binding.activeSessionCount.text = "${sessions.size} connected"
+                activeSessionAdapter.submitList(sessions)
+                updateActiveSessionsCard(sessions.isNotEmpty())
+            }
         }
     }
 
@@ -118,30 +123,56 @@ class MainActivity : BaseActivity() {
         observeData()
 
         if (savedInstanceState == null) {
-            handler.post { requestNotificationPermission() }
+            requestNotificationPermission()
         }
 
         Intent(this, SshConnectionService::class.java).also { intent ->
             startService(intent)
             bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
         }
+
+        handleIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent?) {
+        if (intent?.action == ShortcutHelper.ACTION_CONNECT) {
+            val connectionId = intent.getLongExtra(ShortcutHelper.EXTRA_CONNECTION_ID, -1)
+            if (connectionId != -1L) {
+                if (serviceBound) {
+                    handleShortcutConnection(connectionId)
+                } else {
+                    pendingConnectionId = connectionId
+                }
+            }
+        }
+    }
+
+    private fun handleShortcutConnection(connectionId: Long) {
+        lifecycleScope.launch {
+            val connection = viewModel.getConnectionById(connectionId)
+            if (connection != null) {
+                connectTo(connection)
+            } else {
+                showError("Connection not found")
+            }
+        }
     }
 
     override fun onResume() {
         super.onResume()
-        handler.post(updateRunnable)
         if (connectionAdapter.currentList.isNotEmpty()) {
             refreshHostStatus()
         }
     }
 
-    override fun onPause() {
-        super.onPause()
-        handler.removeCallbacks(updateRunnable)
-    }
-
     override fun onDestroy() {
         super.onDestroy()
+        sessionsJob?.cancel()
         if (serviceBound) {
             unbindService(serviceConnection)
             serviceBound = false
@@ -270,15 +301,10 @@ class MainActivity : BaseActivity() {
                         refreshHostStatus()
                     }
                 }
+                ShortcutHelper.updateShortcuts(this@MainActivity, connections)
             }
         }
 
-        lifecycleScope.launch {
-            viewModel.activeSessions.collectLatest { sessions ->
-                activeSessionAdapter.submitList(sessions)
-                updateActiveSessionsCard(sessions.isNotEmpty())
-            }
-        }
     }
 
     private fun updateEmptyState(isEmpty: Boolean) {
@@ -288,15 +314,6 @@ class MainActivity : BaseActivity() {
 
     private fun updateActiveSessionsCard(hasActiveSessions: Boolean) {
         binding.activeSessionsCard.visibility = if (hasActiveSessions) View.VISIBLE else View.GONE
-    }
-
-    private fun updateActiveSessions() {
-        sshService?.let { service ->
-            val sessions = service.getAllActiveSessions()
-            viewModel.updateActiveSessions(sessions)
-            binding.activeSessionCount.text = "${sessions.size} connected"
-            activeSessionAdapter.notifyItemRangeChanged(0, sessions.size)
-        }
     }
 
     private fun connectTo(connection: SshConnection) {
