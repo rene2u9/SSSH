@@ -148,6 +148,7 @@ class TerminalActivity : BaseActivity() {
     private fun applySettings() {
         binding.terminalView.setTextSize(prefs.defaultFontSize.toFloat())
         binding.extraKeysView.visibility = if (prefs.showExtraKeys) View.VISIBLE else View.GONE
+        binding.extraKeysView.accentColor = prefs.accentColor
     }
 
     private fun showExitDialog() {
@@ -469,6 +470,8 @@ class TerminalActivity : BaseActivity() {
 
     private fun updateTerminalColors(theme: TerminalTheme) {
         binding.terminalContainer.setBackgroundColor(theme.backgroundColor)
+        binding.extraKeysView.buttonBackgroundColor = theme.backgroundColor
+        binding.extraKeysView.buttonTextColor = theme.foregroundColor
         @Suppress("DEPRECATION")
         window.statusBarColor = theme.backgroundColor
         @Suppress("DEPRECATION")
