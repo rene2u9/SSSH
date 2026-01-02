@@ -74,6 +74,32 @@ class TerminalEmulator(
     private var applicationKeypad = false
     private var lineFeedNewLineMode = false
 
+    // Mouse tracking modes
+    private var mouseTrackingMode = MouseTrackingMode.NONE
+    private var mouseProtocol = MouseProtocol.X10
+
+    enum class MouseTrackingMode {
+        NONE,           // No mouse tracking
+        BUTTON,         // Mode 1000: Report button press/release
+        BUTTON_MOTION,  // Mode 1002: Report button press/release and motion while pressed
+        ANY_MOTION      // Mode 1003: Report all motion events
+    }
+
+    enum class MouseProtocol {
+        X10,            // Basic X10 protocol
+        SGR             // Mode 1006: SGR extended coordinates
+    }
+
+    // Mouse button constants
+    companion object {
+        const val MOUSE_LEFT_BUTTON = 0
+        const val MOUSE_MIDDLE_BUTTON = 1
+        const val MOUSE_RIGHT_BUTTON = 2
+        const val MOUSE_WHEELUP_BUTTON = 64
+        const val MOUSE_WHEELDOWN_BUTTON = 65
+        const val MOUSE_LEFT_BUTTON_MOVED = 32
+    }
+
     private val utf8Buffer = ByteArray(4)
     private var utf8BytesRemaining = 0
     private var utf8ByteIndex = 0
@@ -639,7 +665,11 @@ class TerminalEmulator(
                 12 -> { }
                 25 -> cursorVisible = enable
                 47 -> switchScreen(enable)
-                1000, 1002, 1003, 1006, 1015 -> { }
+                1000 -> mouseTrackingMode = if (enable) MouseTrackingMode.BUTTON else MouseTrackingMode.NONE
+                1002 -> mouseTrackingMode = if (enable) MouseTrackingMode.BUTTON_MOTION else MouseTrackingMode.NONE
+                1003 -> mouseTrackingMode = if (enable) MouseTrackingMode.ANY_MOTION else MouseTrackingMode.NONE
+                1006 -> mouseProtocol = if (enable) MouseProtocol.SGR else MouseProtocol.X10
+                1015 -> { } // URXVT mouse mode - not implemented
                 1004 -> { }
                 1034 -> { }
                 1047 -> switchScreen(enable)
@@ -938,6 +968,66 @@ class TerminalEmulator(
     fun getTheme(): TerminalTheme = theme
     fun isCursorVisible(): Boolean = cursorVisible
     fun isApplicationCursorKeys(): Boolean = applicationCursorKeys
+    fun isAlternateBufferActive(): Boolean = useAltScreen
+
+    /** Check if mouse tracking is active */
+    fun isMouseTrackingActive(): Boolean = mouseTrackingMode != MouseTrackingMode.NONE
+
+    /** Check if any motion should be reported (mode 1003) */
+    fun shouldReportAnyMotion(): Boolean = mouseTrackingMode == MouseTrackingMode.ANY_MOTION
+
+    /** Check if button motion should be reported (mode 1002 or 1003) */
+    fun shouldReportButtonMotion(): Boolean =
+        mouseTrackingMode == MouseTrackingMode.BUTTON_MOTION || mouseTrackingMode == MouseTrackingMode.ANY_MOTION
+
+    /** Callback for sending mouse events back to SSH */
+    var onMouseEvent: ((String) -> Unit)? = null
+
+    /**
+     * Send a mouse event to the terminal.
+     * @param button The button code (MOUSE_LEFT_BUTTON, etc.)
+     * @param x Column (1-based)
+     * @param y Row (1-based)
+     * @param pressed True for press, false for release
+     */
+    fun sendMouseEvent(button: Int, x: Int, y: Int, pressed: Boolean) {
+        if (mouseTrackingMode == MouseTrackingMode.NONE) return
+
+        val adjustedX = x.coerceIn(1, columns)
+        val adjustedY = y.coerceIn(1, rows)
+
+        val response = when (mouseProtocol) {
+            MouseProtocol.SGR -> {
+                // SGR extended mouse protocol: ESC [ < Cb ; Cx ; Cy M/m
+                val cb = button
+                val suffix = if (pressed) 'M' else 'm'
+                "\u001b[<$cb;$adjustedX;$adjustedY$suffix"
+            }
+            MouseProtocol.X10 -> {
+                // X10 protocol: ESC [ M Cb Cx Cy
+                // Button is encoded as: 32 + button for press, 35 for release
+                val cb = if (pressed) 32 + button else 35
+                val cx = 32 + adjustedX
+                val cy = 32 + adjustedY
+                // Only works for coordinates < 223
+                if (adjustedX > 222 || adjustedY > 222) return
+                "\u001b[M${cb.toChar()}${cx.toChar()}${cy.toChar()}"
+            }
+        }
+
+        onMouseEvent?.invoke(response)
+    }
+
+    /**
+     * Paste text, optionally using bracketed paste mode.
+     */
+    fun paste(text: String): String {
+        return if (bracketedPasteMode) {
+            "\u001b[200~$text\u001b[201~"
+        } else {
+            text
+        }
+    }
 
     fun getScrollOffset(): Int = scrollOffset
     fun getScrollbackSize(): Int = scrollbackBuffer.size
