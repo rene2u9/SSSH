@@ -52,7 +52,6 @@ class TerminalView @JvmOverloads constructor(
     private var isScaling = false
     private var scaleFactor = 1f
     private val scroller = Scroller(context)
-    private var topRow = 0
     private var scrollRemainder = 0f
 
     private var scrollbarVisible = false
@@ -84,7 +83,7 @@ class TerminalView @JvmOverloads constructor(
             if (isSelectingText()) { stopTextSelectionMode(); return true }
 
             if (emu.isMouseTrackingActive() && !e.isFromSource(InputDevice.SOURCE_MOUSE)) {
-                renderer?.getColumnAndRow(e.x, e.y, topRow)?.let { pos ->
+                renderer?.getColumnAndRow(e.x, e.y)?.let { pos ->
                     emu.sendMouseEvent(TerminalEmulator.MOUSE_LEFT_BUTTON, pos[0] + 1, pos[1] + 1, true)
                     emu.sendMouseEvent(TerminalEmulator.MOUSE_LEFT_BUTTON, pos[0] + 1, pos[1] + 1, false)
                 }
@@ -114,7 +113,7 @@ class TerminalView @JvmOverloads constructor(
             if (isSelectingText()) return false
 
             if (emu.isMouseTrackingActive() && e2.isFromSource(InputDevice.SOURCE_MOUSE)) {
-                val pos = rend.getColumnAndRow(e2.x, e2.y, topRow)
+                val pos = rend.getColumnAndRow(e2.x, e2.y)
                 emu.sendMouseEvent(TerminalEmulator.MOUSE_LEFT_BUTTON_MOVED, pos[0] + 1, pos[1] + 1, true)
                 return true
             }
@@ -131,19 +130,22 @@ class TerminalView @JvmOverloads constructor(
             if (isSelectingText() || !scroller.isFinished) return true
 
             val scale = 0.25f
-            scroller.fling(0, if (emu.isMouseTrackingActive()) 0 else topRow, 0, -(velocityY * scale).toInt(),
-                0, 0, if (emu.isMouseTrackingActive()) -emu.getRows() / 2 else -emu.getScrollbackSize(),
-                if (emu.isMouseTrackingActive()) emu.getRows() / 2 else 0)
+            val scrollOffset = emu.getScrollOffset()
+            scroller.fling(0, scrollOffset, 0, (velocityY * scale).toInt(),
+                0, 0, 0, emu.getScrollbackSize())
 
             val mouseTracking = emu.isMouseTrackingActive()
             post(object : Runnable {
-                private var lastY = 0
+                private var lastOffset = scrollOffset
                 override fun run() {
                     if (mouseTracking != emu.isMouseTrackingActive()) { scroller.abortAnimation(); return }
                     if (scroller.isFinished) return
                     scroller.computeScrollOffset()
-                    doScroll(e2, if (mouseTracking) scroller.currY - lastY else scroller.currY - topRow)
-                    lastY = scroller.currY
+                    val delta = scroller.currY - lastOffset
+                    if (delta > 0) emu.scrollViewUp(delta)
+                    else if (delta < 0) emu.scrollViewDown(-delta)
+                    lastOffset = scroller.currY
+                    invalidate()
                     if (!scroller.isFinished) post(this)
                 }
             })
@@ -179,7 +181,6 @@ class TerminalView @JvmOverloads constructor(
     fun setEmulator(emulator: TerminalEmulator) {
         this.emulator = emulator
         emulator.onScreenUpdate = { post { invalidate() } }
-        topRow = 0
         requestLayout()
         invalidate()
     }
@@ -224,7 +225,7 @@ class TerminalView @JvmOverloads constructor(
         val up = rowsDown < 0  // negative = swipe down = scroll up to see older content
         repeat(abs(rowsDown)) {
             when {
-                emu.isMouseTrackingActive() -> renderer?.getColumnAndRow(event.x, event.y, topRow)?.let { pos ->
+                emu.isMouseTrackingActive() -> renderer?.getColumnAndRow(event.x, event.y)?.let { pos ->
                     emu.sendMouseEvent(if (up) TerminalEmulator.MOUSE_WHEELUP_BUTTON else TerminalEmulator.MOUSE_WHEELDOWN_BUTTON, pos[0] + 1, pos[1] + 1, true)
                 }
                 emu.isAlternateBufferActive() -> onKeyInput?.invoke(if (up) "\u001b[A" else "\u001b[B")
@@ -293,7 +294,7 @@ class TerminalView @JvmOverloads constructor(
         val emu = emulator ?: return
         val rend = renderer ?: return
         val sel = textSelectionController?.getSelectors() ?: intArrayOf(-1, -1, -1, -1)
-        rend.render(emu, canvas, topRow, sel[2], sel[0], sel[3], sel[1], cursorVisible)
+        rend.render(emu, canvas, 0, sel[2], sel[0], sel[3], sel[1], cursorVisible)
         textSelectionController?.render()
 
         // Draw scrollbar
@@ -332,7 +333,7 @@ class TerminalView @JvmOverloads constructor(
                 event.isButtonPressed(MotionEvent.BUTTON_SECONDARY) -> { if (event.action == MotionEvent.ACTION_DOWN) showContextMenu(); return true }
                 event.isButtonPressed(MotionEvent.BUTTON_TERTIARY) -> return true
                 emu.isMouseTrackingActive() -> {
-                    val pos = renderer?.getColumnAndRow(event.x, event.y, topRow) ?: return true
+                    val pos = renderer?.getColumnAndRow(event.x, event.y) ?: return true
                     when (event.action) {
                         MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP ->
                             emu.sendMouseEvent(TerminalEmulator.MOUSE_LEFT_BUTTON, pos[0] + 1, pos[1] + 1, event.action == MotionEvent.ACTION_DOWN)
