@@ -10,7 +10,6 @@ import android.content.pm.ServiceInfo
 import android.graphics.Color
 import android.os.Binder
 import android.os.IBinder
-import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import kotlinx.coroutines.*
@@ -26,6 +25,7 @@ import r2u9.SimpleSSH.ssh.SshSession
 import r2u9.SimpleSSH.terminal.TerminalEmulator
 import r2u9.SimpleSSH.ui.TerminalActivity
 import r2u9.SimpleSSH.util.AppPreferences
+import r2u9.SimpleSSH.util.Logger
 
 class SshConnectionService : Service() {
 
@@ -110,21 +110,21 @@ class SshConnectionService : Service() {
     }
 
     suspend fun connect(connection: SshConnection): Result<String> {
-        Log.d(TAG, "connect() called for ${connection.host}")
+        Logger.d(TAG, "connect() called for ${connection.host}")
         try {
-            Log.d(TAG, "Starting foreground service...")
+            Logger.d(TAG, "Starting foreground service...")
             startForegroundWithPlaceholder()
-            Log.d(TAG, "Foreground service started successfully")
+            Logger.d(TAG, "Foreground service started successfully")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to start foreground service", e)
+            Logger.e(TAG, "Failed to start foreground service", e)
             return Result.failure(e)
         }
 
-        Log.d(TAG, "Attempting SSH connection...")
+        Logger.d(TAG, "Attempting SSH connection...")
         val result = SshManager.connect(connection)
         return result.fold(
             onSuccess = { session ->
-                Log.d(TAG, "SSH connection successful, session id: ${session.id}")
+                Logger.d(TAG, "SSH connection successful, session id: ${session.id}")
                 val activeSession = ActiveSession(
                     sessionId = session.id,
                     connection = connection
@@ -140,7 +140,7 @@ class SshConnectionService : Service() {
                 Result.success(session.id)
             },
             onFailure = { error ->
-                Log.e(TAG, "SSH connection failed", error)
+                Logger.e(TAG, "SSH connection failed", error)
                 if (activeSessions.isEmpty()) {
                     stopForeground(STOP_FOREGROUND_REMOVE)
                 }

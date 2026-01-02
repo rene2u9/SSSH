@@ -13,6 +13,7 @@ import android.os.Bundle
 import android.os.IBinder
 import android.view.Gravity
 import android.view.KeyEvent
+import androidx.activity.OnBackPressedCallback
 import android.view.View
 import android.view.WindowManager
 import android.widget.Toast
@@ -99,6 +100,12 @@ class TerminalActivity : BaseActivity() {
             startService(intent)
             bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
         }
+
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                showExitDialog()
+            }
+        })
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -140,11 +147,6 @@ class TerminalActivity : BaseActivity() {
     private fun applySettings() {
         binding.terminalView.setTextSize(prefs.defaultFontSize.toFloat())
         binding.extraKeysCard.visibility = if (prefs.showExtraKeys) View.VISIBLE else View.GONE
-    }
-
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
-        showExitDialog()
     }
 
     private fun showExitDialog() {

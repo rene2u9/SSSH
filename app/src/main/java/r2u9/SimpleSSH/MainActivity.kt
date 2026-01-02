@@ -46,9 +46,9 @@ import r2u9.SimpleSSH.ui.viewmodel.MainViewModel
 import r2u9.SimpleSSH.util.BiometricHelper
 import r2u9.SimpleSSH.util.ConfigExporter
 import r2u9.SimpleSSH.util.ShortcutHelper
+import r2u9.SimpleSSH.util.Constants
 import r2u9.SimpleSSH.util.WakeOnLan
-import java.net.InetSocketAddress
-import java.net.Socket
+import r2u9.SimpleSSH.util.isHostReachable
 
 class MainActivity : BaseActivity() {
 
@@ -262,7 +262,7 @@ class MainActivity : BaseActivity() {
         lifecycleScope.launch {
             connections.forEach { connection ->
                 launch {
-                    val isReachable = checkHostReachable(connection.host, connection.port)
+                    val isReachable = isHostReachable(connection.host, connection.port)
                     val status = when {
                         isReachable -> HostStatus.ONLINE
                         connection.wolEnabled && !connection.wolMacAddress.isNullOrEmpty() -> HostStatus.WOL_AVAILABLE
@@ -275,19 +275,6 @@ class MainActivity : BaseActivity() {
             }
             withContext(Dispatchers.Main) {
                 binding.swipeRefresh.isRefreshing = false
-            }
-        }
-    }
-
-    private suspend fun checkHostReachable(host: String, port: Int): Boolean {
-        return withContext(Dispatchers.IO) {
-            try {
-                Socket().use { socket ->
-                    socket.connect(InetSocketAddress(host, port), 3000)
-                    true
-                }
-            } catch (e: Exception) {
-                false
             }
         }
     }
@@ -372,7 +359,7 @@ class MainActivity : BaseActivity() {
                         return@launch
                     }
                     loadingDialog.setMessage("Waiting for ${connection.host} to wake up...")
-                    kotlinx.coroutines.delay(3000)
+                    kotlinx.coroutines.delay(Constants.Time.WOL_BOOT_DELAY_MS)
                 }
 
                 loadingDialog.setMessage("Connecting to ${connection.host}...")

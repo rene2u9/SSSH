@@ -17,6 +17,7 @@ import android.view.inputmethod.BaseInputConnection
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.view.inputmethod.InputMethodManager
+import r2u9.SimpleSSH.util.Constants
 
 class TerminalView @JvmOverloads constructor(
     context: Context,
@@ -63,7 +64,7 @@ class TerminalView @JvmOverloads constructor(
         override fun run() {
             cursorVisible = !cursorVisible
             invalidate()
-            postDelayed(this, 530)
+            postDelayed(this, Constants.Time.CURSOR_BLINK_INTERVAL_MS)
         }
     }
 
