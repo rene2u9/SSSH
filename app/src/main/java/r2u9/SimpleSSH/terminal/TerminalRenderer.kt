@@ -228,7 +228,7 @@ class TerminalRenderer(textSize: Int, typeface: Typeface = Typeface.MONOSPACE) {
 
     fun getColumnAndRow(x: Float, y: Float, topRow: Int = 0) = intArrayOf(
         (x / fontWidth).toInt(),
-        ((y - fontLineSpacingAndAscent) / fontLineSpacing).toInt() + topRow
+        (y / fontLineSpacing).toInt() + topRow
     )
 
     fun getPointX(column: Int): Int = (column * fontWidth).toInt()

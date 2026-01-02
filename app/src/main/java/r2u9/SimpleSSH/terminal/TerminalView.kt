@@ -2,6 +2,7 @@ package r2u9.SimpleSSH.terminal
 
 import android.content.Context
 import android.graphics.Canvas
+import android.graphics.Paint
 import android.graphics.Typeface
 import android.os.SystemClock
 import android.text.InputType
@@ -53,6 +54,14 @@ class TerminalView @JvmOverloads constructor(
     private val scroller = Scroller(context)
     private var topRow = 0
     private var scrollRemainder = 0f
+
+    private var scrollbarVisible = false
+    private var scrollbarAlpha = 0f
+    private val scrollbarPaint = Paint().apply { color = 0x80FFFFFF.toInt() }
+    private val scrollbarHideRunnable = Runnable {
+        scrollbarVisible = false
+        invalidate()
+    }
 
     private var cursorVisible = true
     private val cursorBlink = object : Runnable {
@@ -212,7 +221,7 @@ class TerminalView @JvmOverloads constructor(
 
     private fun doScroll(event: MotionEvent, rowsDown: Int) {
         val emu = emulator ?: return
-        val up = rowsDown < 0
+        val up = rowsDown < 0  // negative = swipe down = scroll up to see older content
         repeat(abs(rowsDown)) {
             when {
                 emu.isMouseTrackingActive() -> renderer?.getColumnAndRow(event.x, event.y, topRow)?.let { pos ->
@@ -222,6 +231,14 @@ class TerminalView @JvmOverloads constructor(
                 else -> if (up) emu.scrollViewUp(1) else emu.scrollViewDown(1)
             }
         }
+        showScrollbar()
+        invalidate()
+    }
+
+    private fun showScrollbar() {
+        scrollbarVisible = true
+        removeCallbacks(scrollbarHideRunnable)
+        postDelayed(scrollbarHideRunnable, 1500)
     }
 
     // Keyboard
@@ -278,6 +295,29 @@ class TerminalView @JvmOverloads constructor(
         val sel = textSelectionController?.getSelectors() ?: intArrayOf(-1, -1, -1, -1)
         rend.render(emu, canvas, topRow, sel[2], sel[0], sel[3], sel[1], cursorVisible)
         textSelectionController?.render()
+
+        // Draw scrollbar
+        if (scrollbarVisible) {
+            val scrollbackSize = emu.getScrollbackSize()
+            if (scrollbackSize > 0) {
+                val totalRows = emu.getRows() + scrollbackSize
+                val scrollOffset = emu.getScrollOffset()
+                val viewHeight = height.toFloat()
+                val scrollbarHeight = (emu.getRows().toFloat() / totalRows * viewHeight).coerceAtLeast(48f)
+                val scrollbarTop = ((scrollbackSize - scrollOffset).toFloat() / totalRows * viewHeight)
+                val scrollbarWidth = 8f
+                val scrollbarRight = width.toFloat() - 4f
+
+                canvas.drawRoundRect(
+                    scrollbarRight - scrollbarWidth,
+                    scrollbarTop,
+                    scrollbarRight,
+                    scrollbarTop + scrollbarHeight,
+                    4f, 4f,
+                    scrollbarPaint
+                )
+            }
+        }
     }
 
     // Touch

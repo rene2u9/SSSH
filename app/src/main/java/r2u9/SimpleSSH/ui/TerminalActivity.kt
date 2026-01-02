@@ -33,6 +33,7 @@ import r2u9.SimpleSSH.data.model.TerminalTheme
 import r2u9.SimpleSSH.databinding.ActivityTerminalBinding
 import r2u9.SimpleSSH.service.SshConnectionService
 import r2u9.SimpleSSH.ssh.SshSession
+import r2u9.SimpleSSH.terminal.ExtraKeysView
 import r2u9.SimpleSSH.terminal.TerminalEmulator
 import r2u9.SimpleSSH.util.AppPreferences
 import r2u9.SimpleSSH.util.BiometricHelper
@@ -146,7 +147,7 @@ class TerminalActivity : BaseActivity() {
 
     private fun applySettings() {
         binding.terminalView.setTextSize(prefs.defaultFontSize.toFloat())
-        binding.extraKeysCard.visibility = if (prefs.showExtraKeys) View.VISIBLE else View.GONE
+        binding.extraKeysView.visibility = if (prefs.showExtraKeys) View.VISIBLE else View.GONE
     }
 
     private fun showExitDialog() {
@@ -195,11 +196,9 @@ class TerminalActivity : BaseActivity() {
             AppPreferences.VolumeKeyAction.ENTER -> sendInput("\r")
             AppPreferences.VolumeKeyAction.CTRL -> {
                 ctrlPressed = !ctrlPressed
-                updateModifierKeyStates()
             }
             AppPreferences.VolumeKeyAction.ALT -> {
                 altPressed = !altPressed
-                updateModifierKeyStates()
             }
             AppPreferences.VolumeKeyAction.ESC -> sendInput("\u001b")
         }
@@ -214,9 +213,9 @@ class TerminalActivity : BaseActivity() {
             binding.terminalContainer.setPadding(systemBars.left, systemBars.top, systemBars.right, 0)
 
             val bottomPadding = if (ime.bottom > 0) ime.bottom else systemBars.bottom
-            binding.extraKeysCard.translationY = -bottomPadding.toFloat()
+            binding.extraKeysView.translationY = -bottomPadding.toFloat()
 
-            val extraKeysHeight = binding.extraKeysCard.height
+            val extraKeysHeight = binding.extraKeysView.height
             binding.terminalContainer.setPadding(
                 systemBars.left,
                 systemBars.top,
@@ -397,46 +396,29 @@ class TerminalActivity : BaseActivity() {
                 input
             }
             ctrlPressed = false
-            updateModifierKeyStates()
+            binding.extraKeysView.resetModifiers()
         }
 
         if (altPressed) {
             result = "\u001b$result"
             altPressed = false
-            updateModifierKeyStates()
+            binding.extraKeysView.resetModifiers()
         }
 
         return result
     }
 
     private fun setupExtraKeys() {
-        binding.keyTab.setOnClickListener { sendInput("\t") }
-        binding.keyEnter.setOnClickListener { sendInput("\r") }
+        binding.extraKeysView.keyListener = object : ExtraKeysView.OnKeyListener {
+            override fun onKey(key: String, code: Int) {
+                sendInput(key)
+            }
 
-        binding.keyCtrl.setOnClickListener {
-            ctrlPressed = !ctrlPressed
-            updateModifierKeyStates()
+            override fun onModifierChanged(ctrl: Boolean, alt: Boolean, shift: Boolean, fn: Boolean) {
+                ctrlPressed = ctrl
+                altPressed = alt
+            }
         }
-
-        binding.keyAlt.setOnClickListener {
-            altPressed = !altPressed
-            updateModifierKeyStates()
-        }
-
-        binding.keyEsc.setOnClickListener { sendInput("\u001b") }
-        binding.keyUp.setOnClickListener { sendInput("\u001b[A") }
-        binding.keyDown.setOnClickListener { sendInput("\u001b[B") }
-        binding.keyLeft.setOnClickListener { sendInput("\u001b[D") }
-        binding.keyRight.setOnClickListener { sendInput("\u001b[C") }
-        binding.keyHome.setOnClickListener { sendInput("\u001b[H") }
-        binding.keyEnd.setOnClickListener { sendInput("\u001b[F") }
-        binding.keyPgUp.setOnClickListener { sendInput("\u001b[5~") }
-        binding.keyPgDn.setOnClickListener { sendInput("\u001b[6~") }
-    }
-
-    private fun updateModifierKeyStates() {
-        binding.keyCtrl.isChecked = ctrlPressed
-        binding.keyAlt.isChecked = altPressed
     }
 
     private fun startReading() {
