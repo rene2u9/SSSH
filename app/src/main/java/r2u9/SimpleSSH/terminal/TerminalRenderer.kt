@@ -6,70 +6,42 @@ import android.graphics.PorterDuff
 import android.graphics.Typeface
 import androidx.core.graphics.ColorUtils
 import r2u9.SimpleSSH.data.model.TerminalTheme
+import kotlin.math.abs
+import kotlin.math.ceil
 
 /**
  * Renderer for terminal content using text run batching for performance.
- *
- * Instead of rendering character by character, this renderer batches consecutive
- * characters with the same style into "runs" and renders them together.
- * This significantly improves rendering performance, especially for large terminals.
+ * Batches consecutive characters with the same style into "runs" and renders them together.
  */
-class TerminalRenderer(
-    val textSize: Int,
-    val typeface: Typeface = Typeface.MONOSPACE
-) {
+class TerminalRenderer(textSize: Int, typeface: Typeface = Typeface.MONOSPACE) {
+
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        this.typeface = this@TerminalRenderer.typeface
-        this.textSize = this@TerminalRenderer.textSize.toFloat()
+        this.typeface = typeface
+        this.textSize = textSize.toFloat()
     }
 
-    /** The width of a single monospace character */
     val fontWidth: Float = textPaint.measureText("X")
-
-    /** The line spacing (height of a line) */
-    val fontLineSpacing: Int = Math.ceil(textPaint.fontSpacing.toDouble()).toInt()
-
-    /** The font ascent (distance from baseline to top) */
-    private val fontAscent: Int = Math.ceil(textPaint.ascent().toDouble()).toInt()
-
-    /** Combined line spacing and ascent for positioning */
+    val fontLineSpacing: Int = ceil(textPaint.fontSpacing.toDouble()).toInt()
+    private val fontAscent: Int = ceil(textPaint.ascent().toDouble()).toInt()
     val fontLineSpacingAndAscent: Int = fontLineSpacing + fontAscent
 
-    /** Pre-computed widths for ASCII characters */
-    private val asciiMeasures = FloatArray(127) { i ->
+    // Pre-computed ASCII widths for fast lookup
+    private val asciiWidths = FloatArray(127) { i ->
         if (i > 0) textPaint.measureText(i.toChar().toString()) else 0f
     }
 
-    /**
-     * Cursor styles matching VT100/xterm standards.
-     */
-    enum class CursorStyle {
-        BLOCK,
-        UNDERLINE,
-        BAR
-    }
+    // Reusable StringBuilder to avoid allocations during rendering
+    private val runBuilder = StringBuilder(256)
 
-    /**
-     * Render the terminal content to a canvas.
-     *
-     * @param emulator The terminal emulator containing the screen data
-     * @param canvas The canvas to render to
-     * @param topRow The top row to start rendering from (for scrollback)
-     * @param selectionX1 Selection start column (-1 if no selection)
-     * @param selectionY1 Selection start row
-     * @param selectionX2 Selection end column
-     * @param selectionY2 Selection end row
-     * @param cursorStyle The style of cursor to render
-     */
     fun render(
         emulator: TerminalEmulator,
         canvas: Canvas,
         topRow: Int = 0,
-        selectionX1: Int = -1,
-        selectionY1: Int = -1,
-        selectionX2: Int = -1,
-        selectionY2: Int = -1,
-        cursorStyle: CursorStyle = CursorStyle.BLOCK
+        selX1: Int = -1,
+        selY1: Int = -1,
+        selX2: Int = -1,
+        selY2: Int = -1,
+        cursorBlink: Boolean = true
     ) {
         val theme = emulator.getTheme()
         val screen = emulator.getVisibleScreen()
@@ -77,275 +49,188 @@ class TerminalRenderer(
         val columns = emulator.getColumns()
         val cursorCol = emulator.getCursorX()
         val cursorRow = emulator.getCursorY()
-        val cursorVisible = emulator.isCursorVisible() && emulator.isAtBottom()
+        val cursorVisible = emulator.isCursorVisible() && emulator.isAtBottom() && cursorBlink
 
-        // Draw background
         canvas.drawColor(theme.backgroundColor, PorterDuff.Mode.SRC)
 
-        var heightOffset = fontLineSpacingAndAscent.toFloat()
+        // Normalize selection once
+        val (normSelY1, normSelX1, normSelY2, normSelX2) = normalizeSelection(selX1, selY1, selX2, selY2)
 
         for (row in 0 until rows) {
-            heightOffset += fontLineSpacing
-
+            // top of row, baseline is at top - fontAscent (fontAscent is negative)
+            val rowTop = row * fontLineSpacing.toFloat()
+            val baseline = rowTop - fontAscent
             val cursorX = if (row == cursorRow && cursorVisible) cursorCol else -1
 
-            // Determine selection bounds for this row
-            var selX1 = -1
-            var selX2 = -1
-            if (selectionY1 != -1 && row >= minOf(selectionY1, selectionY2) && row <= maxOf(selectionY1, selectionY2)) {
-                val (startY, startX, endY, endX) = normalizeSelection(selectionX1, selectionY1, selectionX2, selectionY2)
-                if (row >= startY && row <= endY) {
-                    selX1 = if (row == startY) startX else 0
-                    selX2 = if (row == endY) endX else columns - 1
-                }
+            // Calculate selection for this row
+            val (rowSelX1, rowSelX2) = if (normSelY1 != -1 && row in normSelY1..normSelY2) {
+                val x1 = if (row == normSelY1) normSelX1 else 0
+                val x2 = if (row == normSelY2) normSelX2 else columns - 1
+                x1 to x2
+            } else {
+                -1 to -1
             }
 
-            val line = screen[row]
-
-            // Render row using text runs
-            renderRow(
-                canvas, line, columns, heightOffset,
-                cursorX, cursorStyle, selX1, selX2, theme
-            )
+            renderRow(canvas, screen[row], columns, rowTop, baseline, cursorX, rowSelX1, rowSelX2, theme)
         }
     }
 
     private fun normalizeSelection(x1: Int, y1: Int, x2: Int, y2: Int): IntArray {
-        return if (y1 > y2 || (y1 == y2 && x1 > x2)) {
-            intArrayOf(y2, x2, y1, x1)
-        } else {
-            intArrayOf(y1, x1, y2, x2)
-        }
+        return if (y1 == -1) intArrayOf(-1, -1, -1, -1)
+        else if (y1 > y2 || (y1 == y2 && x1 > x2)) intArrayOf(y2, x2, y1, x1)
+        else intArrayOf(y1, x1, y2, x2)
     }
 
     private fun renderRow(
         canvas: Canvas,
         line: Array<TerminalChar>,
         columns: Int,
-        y: Float,
+        rowTop: Float,
+        baseline: Float,
         cursorX: Int,
-        cursorStyle: CursorStyle,
         selX1: Int,
         selX2: Int,
         theme: TerminalTheme
     ) {
-        // Text run batching variables
-        var lastFg = 0
-        var lastBg = 0
-        var lastBold = false
-        var lastItalic = false
-        var lastUnderline = false
-        var lastStrikethrough = false
-        var lastDim = false
-        var lastInsideCursor = false
-        var lastInsideSelection = false
-        var runStartColumn = 0
-        var runStartIndex = 0
-        val runChars = StringBuilder()
-        var measuredWidthForRun = 0f
+        var lastStyle = 0L
+        var lastCursor = false
+        var lastSelected = false
+        var runStart = 0
+        var runWidth = 0f
 
-        for (column in 0 until columns) {
-            val cell = line[column]
-            val char = cell.char
-            val codePoint = char.code
-            val codePointWcWidth = if (codePoint < 32) 1 else WcWidth.width(codePoint).coerceAtLeast(1)
+        runBuilder.setLength(0)
 
-            val insideCursor = cursorX == column || (codePointWcWidth == 2 && cursorX == column + 1)
-            val insideSelection = column in selX1..selX2
+        for (col in 0 until columns) {
+            val cell = line[col]
+            val inCursor = col == cursorX
+            val inSelection = col in selX1..selX2
 
-            val fg = cell.foreground
-            val bg = cell.background
-            val bold = cell.bold
-            val italic = cell.italic
-            val underline = cell.underline
-            val strikethrough = cell.strikethrough
-            val dim = cell.dim
+            // Pack style into a long for fast comparison
+            val style = packStyle(cell)
+            val styleChanged = style != lastStyle || inCursor != lastCursor || inSelection != lastSelected
 
-            // Check if we need to start a new run
-            val styleChanged = fg != lastFg || bg != lastBg || bold != lastBold ||
-                italic != lastItalic || underline != lastUnderline ||
-                strikethrough != lastStrikethrough || dim != lastDim ||
-                insideCursor != lastInsideCursor || insideSelection != lastInsideSelection
-
-            if (styleChanged && column > 0) {
-                // Draw the previous run
-                drawTextRun(
-                    canvas, runChars, y, runStartColumn,
-                    column - runStartColumn, measuredWidthForRun,
-                    if (lastInsideCursor) theme.cursorColor else 0,
-                    cursorStyle, lastFg, lastBg, lastBold, lastItalic,
-                    lastUnderline, lastStrikethrough, lastDim,
-                    lastInsideCursor || lastInsideSelection, theme
-                )
-
-                // Start new run
-                runChars.clear()
-                measuredWidthForRun = 0f
-                runStartColumn = column
-                runStartIndex = column
+            if (styleChanged && col > 0) {
+                drawRun(canvas, runBuilder, rowTop, baseline, runStart, col - runStart, runWidth,
+                    lastCursor, lastSelected, unpackStyle(lastStyle), theme)
+                runBuilder.setLength(0)
+                runWidth = 0f
+                runStart = col
             }
 
-            // Add character to current run
-            if (char.code >= 32 && !cell.hidden) {
-                runChars.append(char)
-            } else {
-                runChars.append(' ')
-            }
+            // Append character
+            val c = cell.char
+            runBuilder.append(if (c.code >= 32 && !cell.hidden) c else ' ')
+            runWidth += if (c.code < asciiWidths.size) asciiWidths[c.code] else textPaint.measureText(c.toString())
 
-            // Measure character width
-            val measuredWidth = if (codePoint < asciiMeasures.size) {
-                asciiMeasures[codePoint]
-            } else {
-                textPaint.measureText(char.toString())
-            }
-            measuredWidthForRun += measuredWidth
-
-            // Update last style
-            lastFg = fg
-            lastBg = bg
-            lastBold = bold
-            lastItalic = italic
-            lastUnderline = underline
-            lastStrikethrough = strikethrough
-            lastDim = dim
-            lastInsideCursor = insideCursor
-            lastInsideSelection = insideSelection
+            lastStyle = style
+            lastCursor = inCursor
+            lastSelected = inSelection
         }
 
         // Draw final run
-        if (runChars.isNotEmpty()) {
-            drawTextRun(
-                canvas, runChars, y, runStartColumn,
-                columns - runStartColumn, measuredWidthForRun,
-                if (lastInsideCursor) theme.cursorColor else 0,
-                cursorStyle, lastFg, lastBg, lastBold, lastItalic,
-                lastUnderline, lastStrikethrough, lastDim,
-                lastInsideCursor || lastInsideSelection, theme
-            )
+        if (runBuilder.isNotEmpty()) {
+            drawRun(canvas, runBuilder, rowTop, baseline, runStart, columns - runStart, runWidth,
+                lastCursor, lastSelected, unpackStyle(lastStyle), theme)
         }
     }
 
-    private fun drawTextRun(
+    // Pack cell style into a Long for fast comparison (avoids object allocations)
+    private fun packStyle(cell: TerminalChar): Long {
+        var flags = 0
+        if (cell.bold) flags = flags or 1
+        if (cell.italic) flags = flags or 2
+        if (cell.underline) flags = flags or 4
+        if (cell.strikethrough) flags = flags or 8
+        if (cell.dim) flags = flags or 16
+        return (cell.foreground.toLong() shl 32) or (cell.background.toLong() and 0xFFFFFFFFL) or (flags.toLong() shl 56)
+    }
+
+    private data class CellStyle(val fg: Int, val bg: Int, val bold: Boolean, val italic: Boolean,
+                                  val underline: Boolean, val strikethrough: Boolean, val dim: Boolean)
+
+    private fun unpackStyle(packed: Long): CellStyle {
+        val flags = (packed shr 56).toInt()
+        return CellStyle(
+            fg = (packed shr 32).toInt(),
+            bg = packed.toInt(),
+            bold = (flags and 1) != 0,
+            italic = (flags and 2) != 0,
+            underline = (flags and 4) != 0,
+            strikethrough = (flags and 8) != 0,
+            dim = (flags and 16) != 0
+        )
+    }
+
+    private fun drawRun(
         canvas: Canvas,
         text: CharSequence,
-        y: Float,
-        startColumn: Int,
-        runWidthColumns: Int,
+        rowTop: Float,
+        baseline: Float,
+        startCol: Int,
+        colCount: Int,
         measuredWidth: Float,
-        cursorColor: Int,
-        cursorStyle: CursorStyle,
-        foreColor: Int,
-        backColor: Int,
-        bold: Boolean,
-        italic: Boolean,
-        underline: Boolean,
-        strikethrough: Boolean,
-        dim: Boolean,
-        reverseVideo: Boolean,
+        inCursor: Boolean,
+        inSelection: Boolean,
+        style: CellStyle,
         theme: TerminalTheme
     ) {
-        var fg = foreColor
-        var bg = backColor
+        var fg = style.fg
+        var bg = style.bg
 
-        // Apply reverse video
-        if (reverseVideo) {
-            val tmp = fg
-            fg = bg
-            bg = tmp
+        if (inSelection) {
+            val tmp = fg; fg = bg; bg = tmp
         }
-
-        // Apply dim effect
-        if (dim) {
+        if (style.dim) {
             fg = ColorUtils.blendARGB(fg, theme.backgroundColor, 0.33f)
         }
 
-        val left = startColumn * fontWidth
-        val right = left + runWidthColumns * fontWidth
+        val left = startCol * fontWidth
+        val right = left + colCount * fontWidth
 
-        // Handle font width mismatch (for non-monospace characters)
-        val mes = measuredWidth / fontWidth
-        var savedMatrix = false
-        var adjustedLeft = left
-        var adjustedRight = right
+        // Handle non-monospace characters by scaling
+        val ratio = measuredWidth / fontWidth
+        val needsScale = abs(ratio - colCount) > 0.01f
+        var adjLeft = left
+        var adjRight = right
 
-        if (Math.abs(mes - runWidthColumns) > 0.01) {
+        if (needsScale) {
             canvas.save()
-            canvas.scale(runWidthColumns / mes, 1f)
-            adjustedLeft = left * mes / runWidthColumns
-            adjustedRight = right * mes / runWidthColumns
-            savedMatrix = true
+            canvas.scale(colCount / ratio, 1f)
+            adjLeft = left * ratio / colCount
+            adjRight = right * ratio / colCount
         }
 
-        // Draw background if not default
+        val rowBottom = rowTop + fontLineSpacing
+
+        // Draw background (selection highlight)
         if (bg != theme.backgroundColor) {
             textPaint.color = bg
-            canvas.drawRect(
-                adjustedLeft, y - fontLineSpacingAndAscent + fontAscent,
-                adjustedRight, y, textPaint
-            )
+            canvas.drawRect(adjLeft, rowTop, adjRight, rowBottom, textPaint)
         }
 
-        // Draw cursor
-        if (cursorColor != 0) {
-            textPaint.color = cursorColor
-            val cursorHeight = fontLineSpacingAndAscent - fontAscent
-            val cursorTop: Float
-            val cursorRight: Float
-
-            when (cursorStyle) {
-                CursorStyle.BLOCK -> {
-                    cursorTop = y - cursorHeight
-                    cursorRight = adjustedRight
-                }
-                CursorStyle.UNDERLINE -> {
-                    cursorTop = y - cursorHeight / 4
-                    cursorRight = adjustedRight
-                }
-                CursorStyle.BAR -> {
-                    cursorTop = y - cursorHeight
-                    cursorRight = adjustedLeft + fontWidth / 4
-                }
-            }
-            canvas.drawRect(adjustedLeft, cursorTop, cursorRight, y, textPaint)
+        // Draw cursor (underline style)
+        if (inCursor) {
+            textPaint.color = theme.cursorColor
+            val cursorHeight = 4f
+            canvas.drawRect(adjLeft, rowBottom - cursorHeight, adjRight, rowBottom, textPaint)
         }
 
         // Draw text
-        textPaint.isFakeBoldText = bold
-        textPaint.isUnderlineText = underline
-        textPaint.textSkewX = if (italic) -0.35f else 0f
-        textPaint.isStrikeThruText = strikethrough
         textPaint.color = fg
+        textPaint.isFakeBoldText = style.bold
 
-        canvas.drawText(
-            text, 0, text.length,
-            adjustedLeft, y - fontLineSpacingAndAscent, textPaint
-        )
+        canvas.drawText(text, 0, text.length, adjLeft, baseline, textPaint)
 
-        if (savedMatrix) {
-            canvas.restore()
-        }
+        textPaint.isFakeBoldText = false
+
+        if (needsScale) canvas.restore()
     }
 
-    /**
-     * Get column and row from screen coordinates.
-     */
-    fun getColumnAndRow(x: Float, y: Float, topRow: Int = 0): IntArray {
-        val column = (x / fontWidth).toInt()
-        val row = ((y - fontLineSpacingAndAscent) / fontLineSpacing).toInt() + topRow
-        return intArrayOf(column, row)
-    }
+    fun getColumnAndRow(x: Float, y: Float, topRow: Int = 0) = intArrayOf(
+        (x / fontWidth).toInt(),
+        ((y - fontLineSpacingAndAscent) / fontLineSpacing).toInt() + topRow
+    )
 
-    /**
-     * Get screen X coordinate for a column.
-     */
-    fun getPointX(column: Int): Int {
-        return Math.round(column * fontWidth)
-    }
-
-    /**
-     * Get screen Y coordinate for a row.
-     */
-    fun getPointY(row: Int, topRow: Int = 0): Int {
-        return ((row - topRow) * fontLineSpacing)
-    }
+    fun getPointX(column: Int): Int = (column * fontWidth).toInt()
+    fun getPointY(row: Int, topRow: Int = 0): Int = (row - topRow) * fontLineSpacing
 }
