@@ -163,7 +163,30 @@ data class TerminalTheme(
             brightWhite = Color.parseColor("#EBDBB2")
         )
 
-        val ALL_THEMES = listOf(DEFAULT, DRACULA, MONOKAI, SOLARIZED_DARK, NORD, GRUVBOX)
+        val CLASSIC = TerminalTheme(
+            name = "Classic",
+            backgroundColor = Color.parseColor("#000000"),
+            foregroundColor = Color.parseColor("#FFFFFF"),
+            cursorColor = Color.parseColor("#FFFFFF"),
+            black = Color.parseColor("#000000"),
+            red = Color.parseColor("#AA0000"),
+            green = Color.parseColor("#00AA00"),
+            yellow = Color.parseColor("#AA5500"),
+            blue = Color.parseColor("#0000AA"),
+            magenta = Color.parseColor("#AA00AA"),
+            cyan = Color.parseColor("#00AAAA"),
+            white = Color.parseColor("#AAAAAA"),
+            brightBlack = Color.parseColor("#555555"),
+            brightRed = Color.parseColor("#FF5555"),
+            brightGreen = Color.parseColor("#55FF55"),
+            brightYellow = Color.parseColor("#FFFF55"),
+            brightBlue = Color.parseColor("#5555FF"),
+            brightMagenta = Color.parseColor("#FF55FF"),
+            brightCyan = Color.parseColor("#55FFFF"),
+            brightWhite = Color.parseColor("#FFFFFF")
+        )
+
+        val ALL_THEMES = listOf(DEFAULT, CLASSIC, DRACULA, MONOKAI, SOLARIZED_DARK, NORD, GRUVBOX)
 
         fun getByName(name: String): TerminalTheme {
             return ALL_THEMES.find { it.name.equals(name, ignoreCase = true) } ?: DEFAULT
